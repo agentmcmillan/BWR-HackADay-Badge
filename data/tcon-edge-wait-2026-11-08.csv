@@ -5,3 +5,4 @@ run,verb,rows,pulls,total_us,trigger_hz,pull_us,best_us,worst_us,assert_us,max_a
 132236,scan_pingpong_edge,1,120,4996143,24.0185,4995556,41592,41685,7751,122,not recorded
 132236,scan_pingpong,16,120,6762949,17.7437,6761845,54736,57731,0,0,not recorded
 132236,scan_pingpong_edge,16,120,6440532,18.6320,6439657,53600,54022,8749,135,not recorded
+133334,scan_pingpong_edge,16,120,6440927,18.6309,6440231,53627,53741,7761,111,confirmed 9.326 Hz state cycle; 18.653 visible reversals/sec

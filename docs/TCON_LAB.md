@@ -241,9 +241,15 @@ edge wait was adopted in that path.
 
 The raw electrical results are in
 [`data/tcon-edge-wait-2026-11-08.csv`](../data/tcon-edge-wait-2026-11-08.csv).
-No camera was used for 0.8.50, so 24.019 Hz is a controller-cycle ceiling, not a
-new optical-frame claim. The 0.8.49 16-row run remains the optical confirmation
-of the same preloaded-RAM trigger mechanism.
+The 24.019 Hz one-row result remains a controller-cycle ceiling because one row
+is below reliable camera resolution. A separate 0.8.50 16-row run provided an
+optical check at the faster edge cadence. The controller completed 120 triggers
+in 6,440,927 us (**18.631 triggers/sec**). In the 30 fps recording, the active
+interval occupied 193 frames, or 6.433 seconds. Its dominant 9.326 Hz state
+cycle corresponds to **18.653 visible reversals/sec** and exactly 120 implied
+reversals. The spectral peak was 60.16 times the median background magnitude.
+The small rate difference is the camera's frame-time resolution; device and
+video counts match exactly.
 
 ## Conclusion
 
@@ -255,14 +261,14 @@ conformance, but the experiment does not support a speed claim.
 The successful speed work is elsewhere: 20 MHz bulk SPI, byte-oriented raster
 operations, overlapped DMA preparation, narrow changed-row gate scans, a held
 controller session, completion-edge timing and a deliberately short transition
-waveform. The measured
-row law makes the key optimization explicit: keep animation inside the smallest
+waveform. The measured row law makes the key optimization explicit: keep
+animation inside the smallest
 possible dirty-row window and avoid reopening the controller. For a repeating
 two-state effect, preloading both controller RAM states removes all per-frame
 RAM traffic and reaches 23.046 trigger cycles/sec at one row. The same mechanism
-reaches 24.019 controller cycles/sec with completion-edge timing. It is
-optically confirmed at 17.998 visible reversals/sec with a 16-row band on the
-preceding build. See
+reaches 24.019 controller cycles/sec with completion-edge timing.
+The 16-row run reached 18.631 triggers/sec and was optically confirmed at
+18.653 visible reversals/sec. See
 [refresh benchmarks](BENCHMARKS.md) and the [refresh pipeline](REFRESH_PIPELINE.md).
 The remaining roughly 543 ms full-height pull is controller scan/waveform time,
 not host transfer time.
@@ -291,6 +297,14 @@ python3 -m pip install -r requirements-dev.txt
 python3 tools/analyze_pingpong.py badge-crop.mp4 \
   --band 190:399:510:19 --above 190:384:510:12 --below 190:421:510:12 \
   --start-frame 100 --end-frame 300 --expected-triggers 120
+```
+
+The 0.8.50 recording used its own fixed framing boxes and active interval:
+
+```sh
+python3 tools/analyze_pingpong.py badge-crop.mp4 \
+  --band 50:129:600:24 --above 50:112:600:12 --below 50:158:600:12 \
+  --start-frame 60 --end-frame 253 --expected-triggers 120
 ```
 
 The runner writes raw results and serial logs under ignored `artifacts/`. Verify

@@ -79,7 +79,9 @@ assert abs(float(optical[0]["held_trigger_hz"]) - 120_000_000 / 6_667_570) < 0.0
 
 with (root / "data/tcon-edge-wait-2026-11-08.csv").open(newline="") as source:
     edge_wait = list(csv.DictReader(source))
-full_edge = [row for row in edge_wait if row["pulls"] == "120"]
+full_edge = [
+    row for row in edge_wait if row["run"] == "132236" and row["pulls"] == "120"
+]
 assert len(full_edge) == 4
 one_edge = next(
     row
@@ -88,6 +90,12 @@ one_edge = next(
 )
 assert abs(float(one_edge["trigger_hz"]) - 120_000_000 / 4_996_143) < 0.0001
 assert int(one_edge["max_assert_us"]) <= 135
+edge_optical = [
+    row for row in edge_wait if row["optical_status"].startswith("confirmed")
+]
+assert len(edge_optical) == 1
+assert edge_optical[0]["rows"] == "16" and edge_optical[0]["pulls"] == "120"
+assert abs(float(edge_optical[0]["trigger_hz"]) - 120_000_000 / 6_440_927) < 0.0001
 
 with (root / "data/tcon-register-trials-2026-11-08.csv").open(newline="") as source:
     register_trials = list(csv.DictReader(source))
