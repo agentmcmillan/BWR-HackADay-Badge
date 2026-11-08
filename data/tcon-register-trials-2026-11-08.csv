@@ -1,0 +1,35 @@
+family,setting,rows,samples,mean_pull_us,min_pull_us,max_pull_us,conclusion
+oscillator,0x11,128,1,144782,144782,144782,no measured advantage over omission
+oscillator,omitted,128,1,145449,145449,145449,B1 documented behavior
+tcon,0x24,128,1,145449,145449,145449,no speedup
+tcon,0x27,128,1,151293,151293,151293,slower
+tcon,0x21,128,1,145622,145622,145622,no speedup
+tcon,0x2D,128,1,166748,166748,166748,slower
+tcon,0x35,128,1,148481,148481,148481,slower
+tcon,0x05,128,1,145167,145167,145167,no speedup
+tcon,0x65,128,1,156913,156913,156913,slower
+tcon,0xA5,128,1,167094,167094,167094,slower
+tcon,0x25,624,1,543090,543090,543090,factory baseline
+tcon,0x00,624,1,543115,543115,543115,25 us slower; equivalent within noise
+dctl_screen,omitted,128,1,146825,146825,146825,initial screen; follow-up repeated separately
+dctl_screen,0x00,128,1,145436,145436,145436,initial screen; follow-up repeated separately
+dctl_screen,0x01,128,1,145301,145301,145301,initial screen only; not repeated
+dctl_screen,0x08,128,1,144878,144878,144878,initial screen; follow-up repeated separately
+dctl_screen,0x09,128,1,145203,145203,145203,initial screen; follow-up repeated separately
+dctl,omitted,128,3,145402.3,144949,145806,no repeatable difference
+dctl,0x00,128,3,145284.0,145136,145468,no repeatable difference
+dctl,0x08,128,3,145833.3,145228,146880,no repeatable difference
+dctl,0x09,128,3,145719.3,144852,147370,no repeatable difference
+dctl,omitted,624,2,542938.0,542548,543328,baseline
+dctl,0x09,624,2,543162.0,543001,543323,224 us slower; equivalent within noise
+drfw,0xA8,128,6,145613.0,144536,146649,factory value; no timing advantage
+drfw,0xA9,128,6,145501.8,145152,145808,fast-driver baseline
+drfw,0xA8,624,2,542641.0,542640,542642,no timing advantage; visual coverage pending
+drfw,0xA9,624,2,542582.5,542453,542712,baseline retained
+scan,0xA9/16_rows,16,3,56786.0,56519,57176,17.610 Hz pull-only ceiling
+scan,0xA9/32_rows,32,3,69195.0,69120,69329,linear row scaling
+scan,0xA9/64_rows,64,3,94656.0,94212,94910,linear row scaling
+scan,0xA9/128_rows,128,3,145705.0,145366,146270,linear row scaling
+scan,0xA9/256_rows,256,3,248783.7,248587,249174,linear row scaling
+scan,0xA9/384_rows,384,3,350937.0,350737,351149,linear row scaling
+scan,0xA9/624_rows,624,3,543020.0,542609,543499,1.842 Hz pull-only ceiling

@@ -98,6 +98,25 @@ else:
     raise AssertionError("A faulted RPC connection must reject every command")
 assert len(rpc.serial.writes) == before
 
+# A hello can be lost while opening USB resets the badge. Only that idempotent
+# handshake retries; ordinary calls retain their stop-on-missing-reply behavior.
+class Connector:
+    home_ready = True
+    session = None
+    attempts = 0
+
+    def call(self, verb, timeout):
+        assert verb == "hello" and timeout <= 10
+        self.attempts += 1
+        if self.attempts == 1:
+            raise TimeoutError("cold boot")
+        return {"version": "0.8.49", "session": "test"}
+
+
+connector = Connector()
+assert module.BadgeRPC.connect(connector, "0.8.49")["session"] == "test"
+assert connector.attempts == 2 and connector.session == "test"
+
 # Equal lengths do not establish that a built-in asset is the reference clip.
 benchmark = ast.parse((root / "tools/video_benchmark.py").read_text())
 verify = next(

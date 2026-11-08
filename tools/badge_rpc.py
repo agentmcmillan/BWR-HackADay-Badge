@@ -73,7 +73,19 @@ class BadgeRPC:
         raise TimeoutError(f"{verb} did not reply")
 
     def connect(self, expected_version):
-        hello = self.call("hello")
+        # Opening USB-Serial-JTAG can reset the badge. A cold Home render may
+        # legitimately take longer than the ordinary 10-second RPC deadline,
+        # and a hello written before the USB task starts can be discarded.
+        # Hello is the only idempotent request retried here; panel commands are
+        # still strictly stop-and-wait and never retry after a missing reply.
+        deadline = time.monotonic() + 60
+        while True:
+            try:
+                hello = self.call("hello", timeout=min(10, deadline - time.monotonic()))
+                break
+            except TimeoutError:
+                if time.monotonic() >= deadline:
+                    raise
         self.session = hello["session"]
         if hello["version"] != expected_version:
             raise RuntimeError("Unexpected test firmware")

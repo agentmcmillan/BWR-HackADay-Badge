@@ -32,6 +32,7 @@ code.
 Requires CMake, a C11 compiler, Python 3.9+, and Node.js for the web renderer test.
 
 ```sh
+python3 -m pip install -r requirements-dev.txt
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
@@ -59,6 +60,25 @@ The integrations used for our hardware measurements run ESP-IDF 6.0.2; the
 [Results and methods](docs/BENCHMARKS.md) include the initial eight 60-frame tests,
 software-pipeline follow-ups and full video benchmarks on one badge, using USB
 telemetry and webcam observation.
+
+The [TCON/OTP lab record](docs/TCON_LAB.md) documents the controller register
+probe, factory OTP field map, bounded serial method and negative timing results
+for TCON, oscillator, DCTL and DRFW experiments. The complete captured OTP is in
+[`data/tcon-otp-b1-2026-11-08.json`](data/tcon-otp-b1-2026-11-08.json), and
+aggregate measurements are in
+[`data/tcon-register-trials-2026-11-08.csv`](data/tcon-register-trials-2026-11-08.csv);
+`tools/tcon_lab.py` reproduces the fixed trial order and the measured 16–624-row
+scan law against compatible firmware. The later held-session result, including
+120 measured one-row partial-refresh calls sustained at 17.615 Hz, is in
+[`data/tcon-held-scan-2026-11-08.csv`](data/tcon-held-scan-2026-11-08.csv).
+Preloading both controller RAM states removed per-frame RAM traffic and reached
+23.046 completed trigger/BUSY cycles per second at one row. A separate 16-row
+run was optically confirmed at 17.998 triggers/sec: 120 device triggers produced
+120 visible reversals during the camera's 6.667-second active interval. Those
+measurements are in
+[`data/tcon-pingpong-2026-11-08.csv`](data/tcon-pingpong-2026-11-08.csv).
+`tools/analyze_pingpong.py` reproduces the video-frequency analysis without
+publishing the private camera recording.
 
 The latest optimized 20 MHz checkerboard run completed 60 physical pulls at
 1.503 frames/sec, about 17% above the original 4 MHz path. Camera analysis

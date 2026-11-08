@@ -26,5 +26,7 @@ add_test(NAME video_codec COMMAND test_video)
 add_test(NAME video_app COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_video_app.py)
 
 add_test(NAME usb_host_framing COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_rpc.py)
+add_test(NAME tcon_lab_contract COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_tcon_lab.py)
+add_test(NAME pingpong_optical_analysis COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_pingpong_analysis.py)
 
 add_test(NAME adapter_contract COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_adapter_contract.py)
