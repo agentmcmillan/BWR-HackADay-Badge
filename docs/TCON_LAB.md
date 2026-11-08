@@ -62,8 +62,12 @@ The captured dummy was `0xFF`. All three B1 signatures passed: byte `0x16` was
 Its first 88 bytes match the earlier capture and SHA-256 exactly. Bytes 88--103
 and 118--127 are `0xFF`; bytes 104--117 decode as `TA2969JS0B10LC`. The newly
 captured tail is identification/reserved space, not an additional timing table
-or fast-mode selector. OTP is panel-specific, so reproduce the read instead of
-assuming this record fits another panel. The decoded fields are:
+or fast-mode selector. The vendor's OTP map defines byte `0x1E` as a flags
+field and `0xFE` as embedded fast update enabled. This panel reports `0xFF` at
+that offset, so its factory OTP does not advertise embedded fast update. That
+flag is a fused capability record, not an evidenced writable mode register.
+OTP is panel-specific, so reproduce the read instead of assuming this record
+fits another panel. The decoded fields are:
 
 | OTP field | Register | Captured bytes |
 | --- | --- | --- |
@@ -76,6 +80,17 @@ assuming this record fits another panel. The decoded fields are:
 | STV | `0x61` | `01` |
 | MS_SYNC | `0xD8` | `80` |
 | BVSS | `0xD6` | `00` |
+
+### Exact `J/0B` shutdown
+
+The vendor's current archived global driver selects the following power-off
+sequence specifically for `eScreen_EPD_969_JS_0B`: `0x09 <- 0x7F`, `0x05 <-
+0x3D`, `0x09 <- 0x7E`, wait 15 ms, then `0x09 <- 0x00`. The older `08`
+controller branch instead uses `0x05 <- 0x7D` and waits 200 ms. Firmware 0.8.59
+adopts the model-matched `0B` sequence. It removes 185 ms of explicit delay
+when a powered session is closed, but does not shorten a pull inside an
+already-open session. Actual end-to-end savings can also include the
+controller's BUSY behavior and should be measured separately.
 
 The factory DC/DC area contains four eight-byte ramp records. It is useful for
 startup conformance, but it does not control the duration of a pull in an

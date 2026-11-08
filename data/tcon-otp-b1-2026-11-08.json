@@ -7,5 +7,8 @@
   "prefix_88_sha256": "9913d1b8315415b820becf5ac5ac01df8f4c7e4229c51f286b2f6518a7ae975e",
   "identity_offset": 104,
   "identity_ascii": "TA2969JS0B10LC",
+  "flags_offset": 30,
+  "flags": 255,
+  "factory_fast_update_enabled": false,
   "hex": "10640101535050304c430125003b00a80900000010003b00009f02018000ffffffffffffffffffff84500000011f9f818a0a0000011f9f818a0a0200017fff83870a0cff007fff81ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5441323936394a53304231304c43ffffffffffffffffffff"
 }

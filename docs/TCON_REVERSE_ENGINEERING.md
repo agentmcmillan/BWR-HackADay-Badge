@@ -41,6 +41,21 @@ For the matching legacy J-film path, `0x10` is the black plane and `0x11` the
 red plane. The repository's differential two-state use is experimentally
 verified custom behavior, not the vendor's factory fast-update mode.
 
+The vendor's OTP map makes that distinction testable: offset `0x1E` is the
+flags byte, with `0xFE` identifying embedded fast update. The captured panel
+contains `0xFF` there. Changing a RAM register cannot rewrite fused OTP, and no
+public `J/0B` driver exposes a mode bit that turns this normal-update film into
+the `P` or `K` fast path. The public matching driver always refreshes with
+`0x15 <- 0x3C`; both its `UPDATE_FAST` and `UPDATE_GLOBAL` API cases ultimately
+call the same panel flush, while temperature gating restricts embedded fast
+update to `P` and `K` film.
+
+The same matching driver does expose one useful model-specific distinction:
+`eScreen_EPD_969_JS_0B` shuts down with `0x09 <- 0x7F`, `0x05 <- 0x3D`, `0x09
+<- 0x7E`, a 15 ms wait and `0x09 <- 0x00`. The older `08` path uses `0x7D` and
+200 ms. This improves session turnover and restores the documented electrical
+sequence, but it cannot reduce the internal scan time of a refresh.
+
 The vendor has suspended general partial-update support because unchanged
 pixels can still degrade and panel life can be reduced. The experiments here
 intentionally continue beyond that supported envelope, so every partial or

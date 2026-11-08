@@ -60,6 +60,9 @@ assert hashlib.sha256(otp_bytes).hexdigest() == otp["sha256"]
 assert hashlib.sha256(otp_bytes[:88]).hexdigest() == otp["prefix_88_sha256"]
 assert otp_bytes[0x16] == 0x3B and otp_bytes[0x0D] == 0x3B
 assert otp_bytes[0x28] & 0x80
+assert otp["flags_offset"] == 0x1E
+assert otp_bytes[otp["flags_offset"]] == otp["flags"] == 0xFF
+assert otp["factory_fast_update_enabled"] is False
 identity = otp["identity_ascii"].encode()
 offset = otp["identity_offset"]
 assert otp_bytes[offset : offset + len(identity)] == identity
