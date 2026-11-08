@@ -75,3 +75,25 @@ clip after perspective correction and a 1.2-pixel Gaussian blur. This reduces
 sensitivity to camera sampling of the ordered dither. It reports the best frame
 index and correlation; it does not certify every pixel or full pigment settling.
 Neither analyzer exports video frames to the public repository.
+
+## Low-resolution light-grid variant
+
+Use `--style light-grid --grid 32x20` when preparing a local clip:
+
+```sh
+python tools/prepare_video.py /path/to/local-video.mpg artifacts/light-grid.bwrv \
+  --style light-grid --grid 32x20 --fps 1.5
+```
+
+The option takes inspiration from Jim Campbell's low-resolution moving-image
+work and the relationship between visible points and recognizable motion,
+described in his [Whitney interview](https://whitney.org/media/39112). It first
+low-pass filters the image, samples 32 × 20 brightness values, then varies the
+area of white paper apertures in a dark field. Dark moving figures emerge as
+missing apertures. Eight area levels and modest temporal smoothing reduce
+flicker; they do not increase the display's physical refresh rate.
+
+The grid is bounded to 4–80 columns and 4–52 rows. The default converter remains
+`--style dither`. Both styles produce the same 240 × 156 BWRVID1 format and work
+with the existing Video upload mode; a new firmware renderer is unnecessary.
+The public tree includes no music-video frames or artwork by Campbell.

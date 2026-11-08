@@ -3,17 +3,37 @@
 """Convert a local video into a bounded monochrome RAM clip; never fetch a URL."""
 import argparse
 import json
+import re
 from pathlib import Path
 import struct
 import subprocess
 import zlib
 import numpy as np
 
+
+def parse_grid(value):
+    match = re.fullmatch(r"([0-9]{1,2})x([0-9]{1,2})", value)
+    if not match:
+        raise argparse.ArgumentTypeError("Use a grid such as 32x20")
+    columns, rows = map(int, match.groups())
+    if not 4 <= columns <= 80 or not 4 <= rows <= 52:
+        raise argparse.ArgumentTypeError("Grid must be 4–80 columns and 4–52 rows")
+    return columns, rows
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("input", type=Path)
 parser.add_argument("output", type=Path)
 parser.add_argument("--fps", type=float, default=1.5)
 parser.add_argument("--frames", type=int, default=600)
+parser.add_argument("--style", choices=("dither", "light-grid"), default="dither")
+parser.add_argument(
+    "--grid",
+    type=parse_grid,
+    default=(32, 20),
+    metavar="COLSxROWS",
+    help="Sampling grid for --style light-grid (default: 32x20)",
+)
 parser.add_argument(
     "--packbits",
     action="store_true",
@@ -51,7 +71,13 @@ raw = subprocess.run(command, check=True, stdout=subprocess.PIPE).stdout
 if not raw or len(raw) % (240 * 156):
     raise RuntimeError("Incomplete decoded frame stream")
 frames = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 156, 240)
-payload = np.packbits(frames < threshold, axis=2, bitorder="big").tobytes()
+if args.style == "light-grid":
+    from light_grid import render_light_grid
+
+    ink = render_light_grid(frames, columns=args.grid[0], rows=args.grid[1])
+else:
+    ink = frames < threshold
+payload = np.packbits(ink, axis=2, bitorder="big").tobytes()
 header = struct.pack(
     "<8sHHIIIII",
     b"BWRVID1\0",
@@ -93,6 +119,8 @@ print(
     json.dumps(
         {
             "frames": len(frames),
+            "style": args.style,
+            "grid": args.grid if args.style == "light-grid" else None,
             "sample_fps": args.fps,
             "bytes": len(output),
             "crc32": f"{zlib.crc32(payload):08x}",

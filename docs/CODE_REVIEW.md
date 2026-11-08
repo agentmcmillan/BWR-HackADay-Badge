@@ -41,3 +41,11 @@ No unresolved release-blocking issue was found in the reviewed public subset.
 Known limits remain documented: a complete firmware needs a separately permitted
 host implementation, raw camera evidence stays local, and experimental refresh
 profiles retain visible ghosting and unverified electrical/lifetime margins.
+
+The subsequent light-grid preprocessing option was reviewed separately. Tests
+cover default and maximum grid bounds, deterministic/source-immutable output,
+zero-light cells at exactly aligned raster centers, temporal persistence and
+converter integration with the existing file header, CRC and bit order. The
+review corrected a zero-radius pinhole at aligned cell centers and rejects
+non-integer grids or empty/oversized frame sequences. No artist imagery or music
+video is included in that change.

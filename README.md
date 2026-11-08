@@ -17,7 +17,8 @@ pending clarification. See [provenance and licenses](docs/LICENSING.md).
   name-tag toggle and randomized DVD trajectories.
 - Byte raster operations, cache-aware difference scanning and pipelined DMA window packing.
 - Refresh timing/statistics helpers and bounded USB benchmark control.
-- RAM video playback and local-file conversion, with finite live-panel benchmarks.
+- RAM video playback and local-file conversion, with finite live-panel benchmarks
+  and an optional low-resolution light-grid rendering.
 - ESP-IDF app adapters and a reference for integrating the new driver hooks.
 - Standalone image preview, three-color conversion and USB portal integration fragments.
 - Sanitizer-backed host tests and anonymized physical benchmark measurements.
@@ -35,6 +36,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 node tests/test_eink_rendering.js
+node tests/test_serial_upload.js
 ```
 
 AddressSanitizer and UndefinedBehaviorSanitizer are enabled by default for host
