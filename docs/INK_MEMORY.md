@@ -35,13 +35,13 @@ person. Original source video and derived images are not part of the public repo
 
 ## Format and lifecycle
 
-`BWRINK1\0` uses the same 32-byte little-endian envelope as BWRVID1: width960,
-height624, frame count1–36, hold duration1000–30000 milliseconds, payload CRC-32,
-flags0 and reserved0. Each frame is74880 bytes, row-major MSB-first, 1=black.
-The first48 status rows are never stored or overwritten by the clip. The parser
+`BWRINK1\0` uses the same 32-byte little-endian envelope as BWRVID1: width 960,
+height 624, frame count 1–36, hold duration 1,000–30,000 milliseconds, payload CRC-32,
+flags 0 and reserved 0. Each frame is 74,880 bytes, row-major MSB-first, 1=black.
+The first 48 status rows are never stored or overwritten by the clip. The parser
 checks the exact format, dimensions, bounds, size and CRC before taking ownership.
 
-Legacy BWRVID1 remains240 × 156 with 4× expansion and unpaced playback. It is
+Legacy BWRVID1 remains 240 × 156 with 4× expansion and unpaced playback. It is
 unchanged. Native mode has no result redraw over the artwork. Holds poll stop/
 Home requests at bounded intervals without holding a mutex, and long holds occur
 with the panel session closed. A successful `--leave-ink` run closes serial while
@@ -57,9 +57,9 @@ trial makes that capture an error rather than valid benchmark evidence.
 
 ## Live check
 
-Firmware0.8.37 completed a four-pose native run at4MHz with four physical pulls,
+Firmware 0.8.37 completed a four-pose native run at 4 MHz with four physical pulls,
 four session reopens and four-second holds after shutdown. Total elapsed time
-was29.486seconds. The camera showed detailed new poses alongside faint residual
+was 29.486 seconds. The camera showed detailed new poses alongside faint residual
 traces, and the last image remained after serial disconnected. No controller
 fault was reported. This is a paced artwork check, not a refresh-speed claim.
 Raw recordings, the model and user-supplied Rick video remain local. The complete
