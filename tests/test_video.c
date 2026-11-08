@@ -57,6 +57,41 @@ static void packed_check(void)
     assert(bwr_video_unpack(packed, used, decoded, sizeof decoded) == sizeof file &&
            !memcmp(decoded, file, sizeof file));
 }
+static void native_check(void)
+{
+    size_t size = 32 + 2 * 74880;
+    uint8_t *bytes = calloc(1, size);
+    assert(bytes);
+    memcpy(bytes, "BWRINK1", 8);
+    bytes[8] = 0xc0;
+    bytes[9] = 3;
+    bytes[10] = 0x70;
+    bytes[11] = 2;
+    bytes[12] = 2;
+    bytes[16] = 0xa0;
+    bytes[17] = 0x0f;
+    for (size_t i = 32; i < size; i++)
+        bytes[i] = (uint8_t)(i * 71);
+    uint32_t crc = bwr_video_crc32(bytes + 32, size - 32);
+    for (unsigned i = 0; i < 4; i++)
+        bytes[20 + i] = (uint8_t)(crc >> (8 * i));
+    bwr_video clip;
+    assert(bwr_video_parse(bytes, size, &clip) && clip.native_ink && clip.hold_ms == 4000 &&
+           clip.frame_bytes == 74880);
+    memset(canvas, 0xa5, sizeof canvas);
+    assert(bwr_video_draw(&clip, 1, canvas));
+    for (unsigned i = 0; i < 48 * 120; i++)
+        assert(canvas[i] == 0xa5);
+    assert(!memcmp(canvas + 48 * 120, bytes + 32 + 74880, 74880));
+    assert(!bwr_video_parse(bytes, size - 1, &clip));
+    bytes[12] = 37;
+    assert(!bwr_video_parse(bytes, size, &clip));
+    bytes[12] = 2;
+    bytes[16] = 0;
+    bytes[17] = 0;
+    assert(!bwr_video_parse(bytes, size, &clip));
+    free(bytes);
+}
 int main(void)
 {
     assert(bwr_video_crc32((const uint8_t *)"123456789", 9) == 0xcbf43926u);
@@ -94,6 +129,8 @@ int main(void)
     packed_check();
     word(12, 601);
     assert(!bwr_video_parse(file, sizeof file, &video));
-    puts("PASS video: CRC known vector, strict format/size/count checks, corrupt/truncated input "
+    native_check();
+    puts("PASS native/legacy video: CRC known vector, strict format/size/count checks, "
+         "corrupt/truncated input "
          "rejection, exact 4x expansion and preserved status bar");
 }

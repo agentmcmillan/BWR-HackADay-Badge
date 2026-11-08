@@ -9,6 +9,7 @@ import struct
 import subprocess
 import zlib
 import numpy as np
+from clip_pack import packbits_envelope
 
 
 def parse_grid(value):
@@ -92,28 +93,7 @@ header = struct.pack(
 args.output.parent.mkdir(parents=True, exist_ok=True)
 output = header + payload
 if args.packbits:
-    packed = bytearray()
-    i = 0
-    while i < len(output):
-        run = 1
-        while i + run < len(output) and output[i + run] == output[i] and run < 128:
-            run += 1
-        if run >= 3:
-            packed.extend((257 - run, output[i]))
-            i += run
-            continue
-        start = i
-        i += run
-        while i < len(output) and i - start < 128:
-            run = 1
-            while i + run < len(output) and output[i + run] == output[i] and run < 128:
-                run += 1
-            if run >= 3:
-                break
-            i += min(run, 128 - (i - start))
-        packed.append(i - start - 1)
-        packed.extend(output[start:i])
-    output = struct.pack("<8sII", b"BWRPACK1", len(output), zlib.crc32(output)) + packed
+    output = packbits_envelope(output)
 args.output.write_bytes(output)
 print(
     json.dumps(

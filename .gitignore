@@ -17,3 +17,5 @@ __pycache__/
 *.avi
 *.mkv
 *.m4v
+*.bwrink
+*.onnx

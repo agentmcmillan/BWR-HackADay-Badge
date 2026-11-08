@@ -14,9 +14,13 @@ import zlib
 from badge_rpc import BadgeRPC
 
 
-def verify_builtin_clip(status, frame_count, payload_crc):
+def verify_builtin_clip(status, frame_count, payload_crc, file_crc=None):
     """Do not benchmark a different private clip with an equal frame count."""
-    if status.get("loaded") != frame_count or status.get("clip_crc32") != payload_crc:
+    if (
+        status.get("loaded") != frame_count
+        or status.get("clip_crc32") != payload_crc
+        or (file_crc is not None and status.get("clip_file_crc32") != file_crc)
+    ):
         raise RuntimeError(
             "Built-in clip identity does not match the supplied reference (frame count and CRC-32 required)"
         )
@@ -31,6 +35,11 @@ parser.add_argument("--frames", type=int)
 parser.add_argument("--camera", default="0")
 parser.add_argument("--review", action="store_true")
 parser.add_argument(
+    "--leave-ink",
+    action="store_true",
+    help="Keep the final native pose on the badge after a successful run",
+)
+parser.add_argument(
     "--builtin",
     action="store_true",
     help="Use the matching clip already built into private firmware",
@@ -40,16 +49,29 @@ data = args.clip.read_bytes()
 if len(data) < 32:
     parser.error("Truncated clip")
 magic, w, h, count, fps, crc, flags, reserved = struct.unpack("<8sHHIIIII", data[:32])
+native = magic == b"BWRINK1\0"
+if native:
+    valid = (w, h) == (960, 624) and 1 <= count <= 36 and 1000 <= fps <= 30000
+    stride = 74880
+    hold_ms = fps
+else:
+    valid = (
+        (magic, w, h) == (b"BWRVID1\0", 240, 156)
+        and 1 <= count <= 600
+        and 500 <= fps <= 30000
+    )
+    stride = 4680
+    hold_ms = 0
 if (
-    (magic, w, h) != (b"BWRVID1\0", 240, 156)
-    or not 1 <= count <= 600
-    or len(data) != 32 + count * 4680
-    or not 500 <= fps <= 30000
+    not valid
+    or len(data) != 32 + count * stride
     or flags
     or reserved
     or zlib.crc32(data[32:]) != crc
 ):
     parser.error("Invalid BWR clip")
+if args.leave_ink and not native:
+    parser.error("--leave-ink requires a native ink-memory clip")
 clocks = list(map(int, args.clocks.split(",")))
 frames = count if args.frames is None else args.frames
 if (
@@ -66,10 +88,11 @@ out = (
 out.mkdir(parents=True)
 rpc = BadgeRPC(args.port, out)
 results = []
+succeeded = False
 try:
     rpc.connect(args.firmware_version)
     if args.builtin:
-        verify_builtin_clip(rpc.call("video_status"), count, crc)
+        verify_builtin_clip(rpc.call("video_status"), count, crc, zlib.crc32(data))
     else:
         rpc.call("begin", "video", len(data))
         for offset in range(0, len(data), 768):
@@ -141,6 +164,8 @@ try:
             "mhz": clock,
             "frames": frames,
             "status": "starting",
+            "native_ink": native,
+            "hold_ms": hold_ms,
             "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
         try:
@@ -150,7 +175,9 @@ try:
             before = rpc.call("video_status")["sequence"]
             rpc.call("video_run", clock, frames)
             print("RUNNING " + str(folder), flush=True)
-            deadline = time.monotonic() + min(1800, frames * 3 + 120)
+            deadline = time.monotonic() + min(
+                1800, frames * (hold_ms / 1000 + 12 if native else 3) + 120
+            )
             next_progress = 30
             while True:
                 status = rpc.call("video_status")
@@ -190,8 +217,9 @@ try:
                 if (folder / "stop").exists() or time.monotonic() > deadline:
                     raise RuntimeError("Review stopped or expired")
                 time.sleep(0.5)
+    succeeded = True
 finally:
-    if rpc.session and not rpc.fault:
+    if rpc.session and not rpc.fault and not (succeeded and native and args.leave_ink):
         try:
             rpc.call("video_exit")
         except Exception:

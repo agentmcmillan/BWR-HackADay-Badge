@@ -11,7 +11,7 @@
 static SemaphoreHandle_t lock;
 static uint8_t *clip_bytes;
 static bwr_video clip;
-static uint32_t clip_crc32;
+static uint32_t clip_crc32, clip_file_crc32;
 static bool active, pending, running, stop, leave;
 static unsigned requested_mhz = 4, requested_frames, sequence, position;
 static uint64_t elapsed_us;
@@ -26,12 +26,14 @@ bool video_accept(uint8_t *bytes, size_t size)
     bwr_video next;
     if (!bwr_video_parse(bytes, size, &next))
         return false;
+    uint32_t file_crc = bwr_video_crc32(bytes, size);
     xSemaphoreTake(lock, portMAX_DELAY);
     bool ok = !active && !pending && !running;
     if (ok) {
         free(clip_bytes);
         clip_bytes = bytes;
         clip = next;
+        clip_file_crc32 = file_crc;
         clip_crc32 = (uint32_t)bytes[20] | (uint32_t)bytes[21] << 8 | (uint32_t)bytes[22] << 16 |
                      (uint32_t)bytes[23] << 24;
         position = 0;
@@ -76,13 +78,16 @@ void video_status(char *out, size_t capacity)
     xSemaphoreTake(lock, portMAX_DELAY);
     snprintf(out, capacity,
              "{\"active\":%s,\"pending\":%s,\"running\":%s,\"loaded\":%u,"
-             "\"clip_crc32\":%lu,\"frame\":%u,\"sequence\":%u,\"mhz\":%u,\"calls\":%u,\"pulls\":%u,"
+             "\"clip_crc32\":%lu,\"clip_file_crc32\":%lu,\"native_ink\":%s,\"hold_ms\":%u,"
+             "\"frame\":%u,\"sequence\":%u,\"mhz\":%u,\"calls\":%u,\"pulls\":%u,"
              "\"elapsed_us\":%llu,\"render_us\":%llu,\"write_us\":%llu,\"pull_"
              "us\":%llu,\"reopens\":%u}",
              active ? "true" : "false", pending ? "true" : "false", running ? "true" : "false",
-             clip.count, (unsigned long)clip_crc32, position, sequence, requested_mhz, last.calls,
-             last.pulls, (unsigned long long)elapsed_us, (unsigned long long)last.render_us,
-             (unsigned long long)last.write_us, (unsigned long long)last.pull_us, last.reopens);
+             clip.count, (unsigned long)clip_crc32, (unsigned long)clip_file_crc32,
+             clip.native_ink ? "true" : "false", clip.hold_ms, position, sequence, requested_mhz,
+             last.calls, last.pulls, (unsigned long long)elapsed_us,
+             (unsigned long long)last.render_us, (unsigned long long)last.write_us,
+             (unsigned long long)last.pull_us, last.reopens);
     xSemaphoreGive(lock);
 }
 static void title(const char *message)
@@ -106,13 +111,27 @@ void app_video(void)
     ui_refresh_shortcut(false);
     ui_protect_overlay(NULL);
     ui_protect_footer(false);
-    title(clip.frames ? "Clip loaded. A replays at 4 MHz."
-                      : "Return Home, then upload a .bwrv clip over USB.");
+    if (clip.native_ink) {
+        ui_keys("Fresh sheet", NULL, "Dance again", "Home");
+        ui_close();
+    } else
+        title(clip.frames ? "Clip loaded. A replays at 4 MHz."
+                          : "Return Home, then upload a .bwrv clip over USB.");
     unsigned mhz = 4;
+    bool fresh_sheet = false;
     for (;;) {
         int button = btn_get(100);
         if (button == BWR_BTN_B)
             break;
+        if (clip.native_ink && button == BWR_BTN_PLUS) {
+            ui_wipe();
+            memset(fb, 0, sizeof fb);
+            ui_frame(1);
+            ui_close();
+            continue;
+        }
+        if (clip.native_ink && button == BWR_BTN_MINUS)
+            continue;
         if (button == BWR_BTN_PLUS)
             mhz = 4;
         if (button == BWR_BTN_MINUS)
@@ -151,8 +170,11 @@ void app_video(void)
             title("Could not select the requested clock. No video run started.");
             continue;
         }
-        memset(fb, 0, sizeof fb);
-        ui_frame(1); // blank warmup excluded; every clip frame is timed
+        if (!clip.native_ink) {
+            memset(fb, 0, sizeof fb);
+            ui_frame(1); // legacy blank warmup excluded
+        } else
+            ui_close();
         uint64_t begin = (uint64_t)esp_timer_get_time();
         for (unsigned frame = 0; frame < target; frame++) {
             xSemaphoreTake(lock, portMAX_DELAY);
@@ -175,6 +197,31 @@ void app_video(void)
             xSemaphoreTake(lock, portMAX_DELAY);
             position = frame + 1;
             xSemaphoreGive(lock);
+            if (clip.native_ink) {
+                ui_close(); // pigment remains; shut the booster down during the long hold
+                uint64_t until = (uint64_t)esp_timer_get_time() + (uint64_t)clip.hold_ms * 1000;
+                while ((uint64_t)esp_timer_get_time() < until) {
+                    int64_t remaining = (int64_t)until - esp_timer_get_time();
+                    if (remaining <= 0)
+                        break;
+                    int wait_ms = (int)((remaining + 999) / 1000);
+                    int key = btn_get(wait_ms > 100 ? 100 : wait_ms);
+                    if (key == BWR_BTN_PLUS) {
+                        fresh_sheet = true;
+                        video_stop(false);
+                        break;
+                    }
+                    if (key == BWR_BTN_A || key == BWR_BTN_B) {
+                        video_stop(key == BWR_BTN_B);
+                        break;
+                    }
+                    xSemaphoreTake(lock, portMAX_DELAY);
+                    bool halted = stop || leave;
+                    xSemaphoreGive(lock);
+                    if (halted)
+                        break;
+                }
+            }
         }
         uint64_t elapsed = (uint64_t)esp_timer_get_time() - begin;
         ui_close();
@@ -193,7 +240,15 @@ void app_video(void)
         snprintf(line, sizeof line, "%u frames / %.2f sec = %.2f fps, %u physical pulls",
                  result.calls, elapsed / 1000000., elapsed ? result.calls * 1000000. / elapsed : 0.,
                  result.pulls);
-        title(line);
+        if (fresh_sheet) {
+            ui_wipe();
+            memset(fb, 0, sizeof fb);
+            ui_frame(1);
+            ui_close();
+            fresh_sheet = false;
+        }
+        if (!clip.native_ink)
+            title(line);
     }
     ui_refresh_lab_end();
     ui_close();
