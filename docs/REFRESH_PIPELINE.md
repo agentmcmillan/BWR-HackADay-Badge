@@ -8,6 +8,10 @@ change the pigment waveform, power rails or controller session limits.
 2. `bwr_changed_boxes` visits both controller halves in row order. Equal rows use
    `memcmp`; differing rows only search outside the current horizontal extent.
    This preserves the smallest changed byte box without rescanning its interior.
+   When a renderer already knows the only rows it changed,
+   `bwr_changed_boxes_rows` applies the same exact search to that inclusive row
+   range. The caller must not use the ranged form if an overlay or other drawing
+   can change pixels outside the hint.
 3. The host accounts for the controller's old/new RAM swap by updating the union
    of current and preceding changed boxes. That state rule remains essential.
 4. `bwr_stream_window` bit-reverses and packs a window into two internal DMA

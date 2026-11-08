@@ -30,7 +30,14 @@ parser.add_argument("--fps", type=float, default=1.5)
 parser.add_argument("--frames", type=int, default=600)
 parser.add_argument(
     "--style",
-    choices=("dither", "light-grid", "adaptive-dither", "adaptive-light-grid"),
+    choices=(
+        "dither",
+        "light-grid",
+        "poster",
+        "adaptive-dither",
+        "adaptive-light-grid",
+        "adaptive-poster",
+    ),
     default="dither",
 )
 parser.add_argument(
@@ -39,6 +46,13 @@ parser.add_argument(
     default=(32, 20),
     metavar="COLSxROWS",
     help="Sampling grid for --style light-grid (default: 32x20)",
+)
+parser.add_argument(
+    "--poster-threshold",
+    type=int,
+    default=112,
+    metavar="1..254",
+    help="Fixed grayscale cutoff for poster styles (default: 112)",
 )
 parser.add_argument(
     "--band-rows",
@@ -77,6 +91,8 @@ if (
     or not 0 <= args.motion_weight <= 100
 ):
     parser.error("Use band rows 1–156, max age 1–1000 and motion weight 0–100.")
+if not 1 <= args.poster_threshold <= 254:
+    parser.error("Use a poster threshold from 1 to 254.")
 if args.output.exists():
     parser.error("Output already exists; choose a new filename.")
 focus = None
@@ -124,6 +140,10 @@ if base_style == "light-grid":
     ink = render_light_grid(
         frames, columns=args.grid[0], rows=args.grid[1]
     ).astype(np.bool_)
+elif base_style == "poster":
+    from poster import render_poster
+
+    ink = render_poster(frames, threshold=args.poster_threshold).astype(np.bool_)
 else:
     ink = frames < threshold
 adaptive = None
@@ -158,6 +178,7 @@ print(
             "frames": len(ink),
             "style": args.style,
             "grid": args.grid if base_style == "light-grid" else None,
+            "poster_threshold": args.poster_threshold if base_style == "poster" else None,
             "sample_fps": args.fps,
             "bytes": len(output),
             "crc32": f"{zlib.crc32(payload):08x}",

@@ -19,6 +19,12 @@ typedef struct {
 uint32_t bwr_video_crc32(const uint8_t *bytes, size_t size);
 bool bwr_video_parse(const uint8_t *bytes, size_t size, bwr_video *video);
 bool bwr_video_draw(const bwr_video *video, unsigned frame, uint8_t *canvas);
+// UINT32_MAX previous_frame means an all-white starting canvas. Empty deltas are
+// reported as first_row > last_row. Rows are in the clip's local coordinates.
+bool bwr_video_delta_rows(const bwr_video *video, unsigned frame, unsigned previous_frame,
+                          unsigned *first_row, unsigned *last_row);
+bool bwr_video_draw_rows(const bwr_video *video, unsigned frame, unsigned first_row,
+                         unsigned last_row, uint8_t *canvas);
 
 // Optional PackBits envelope for a private built-in clip. Returns decoded bytes or zero.
 size_t bwr_video_unpack(const uint8_t *packed, size_t size, uint8_t *output, size_t capacity);

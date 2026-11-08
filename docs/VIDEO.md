@@ -71,6 +71,13 @@ is useful for a known face or subject but is not automatic object recognition.
 `adaptive-light-grid` applies the same scheduling after the sparse light-grid
 renderer.
 
+`adaptive-poster` is the high-contrast option for fast, ghost-prone playback.
+It applies a mild blur, one fixed grayscale threshold for the entire clip, and
+removes only tiny disconnected ink flecks. It deliberately avoids ordered
+dither and preserves white holes in faces and clothing, so narrow-band pulls
+reinforce solid subject shapes instead of accumulating a field of microdots.
+The default threshold is 112; use `--poster-threshold` for other source grading.
+
 The last states return the image to white one band at a time. Because Video
 blanks before playback, both the end-to-start wrap and every internal transition
 remain within the requested band height. This adds closure operations and makes
@@ -80,6 +87,24 @@ source, closure and total operation counts plus mean/maximum changed rows.
 Adaptive output prioritizes local motion rather than simultaneous complete
 frames. Its header FPS records source sampling for provenance; playback remains
 unpaced and runs at the panel's physical limit.
+
+### Row-band playback adapter
+
+Adaptive clips can carry their locality through the complete render path.
+`bwr_video_delta_rows` compares the compact source rows of the current and
+previous operation (or an all-white baseline for the first operation), and
+`bwr_video_draw_rows` expands only the inclusive changed range into the panel
+canvas. A host adapter may then call its partial-refresh path with the matching
+panel rows, `48 + first_row * 4` through
+`48 + (last_row + 1) * 4 - 1`, inclusive.
+
+The ranged refresh is an optimization hint, not a different image format. It is
+safe only when the status bar and blank app canvas have already been committed,
+no overlay is added outside the hinted rows, and the adapter still repairs the
+controller's preceding RAM window. Ordinary full-frame rendering remains the
+fallback for native clips and integrations without a ranged refresh API.
+An empty delta is reported as `first_row > last_row`; callers can count that
+operation as a cache hit without expanding or scanning the full canvas.
 
 `--frames 60` limits a timing run. Omit it to run every loaded frame. After a
 REVIEW checkpoint, create `continue` or `stop` in that trial directory. BUSY faults

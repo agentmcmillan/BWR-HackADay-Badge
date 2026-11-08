@@ -51,6 +51,25 @@ static void reference_bounds(unsigned half, int out[4])
                     out[3] = y;
             }
 }
+static void reference_bounds_rows(unsigned half, int y0, int y1, int out[4])
+{
+    out[0] = 60;
+    out[1] = -1;
+    out[2] = 672;
+    out[3] = -1;
+    for (int y = y0; y <= y1; y++)
+        for (int x = 0; x < 60; x++)
+            if (actual[y * 120 + half * 60 + x] != before[y * 120 + half * 60 + x]) {
+                if (x < out[0])
+                    out[0] = x;
+                if (x > out[1])
+                    out[1] = x;
+                if (y < out[2])
+                    out[2] = y;
+                if (y > out[3])
+                    out[3] = y;
+            }
+}
 
 static uint8_t buffers[2][4096], pending_copy[4096], output[40320];
 static const uint8_t *pending_bytes;
@@ -128,12 +147,17 @@ int main(void)
             actual[random_word() % sizeof actual] ^= (uint8_t)random_word();
         int joint[2][4];
         bwr_changed_boxes(actual, before, joint);
+        int y0 = (int)(random_word() % 672), y1 = y0 + (int)(random_word() % (672 - y0));
+        int ranged[2][4];
+        bwr_changed_boxes_rows(actual, before, y0, y1, ranged);
         for (unsigned half = 0; half < 2; half++) {
-            int a[4], b[4];
+            int a[4], b[4], r[4];
             reference_bounds(half, a);
+            reference_bounds_rows(half, y0, y1, r);
             bwr_changed_box(actual, before, half, b);
             assert(!memcmp(a, b, sizeof a));
             assert(!memcmp(a, joint[half], sizeof a));
+            assert(!memcmp(r, ranged[half], sizeof r));
         }
     }
     check_stream();

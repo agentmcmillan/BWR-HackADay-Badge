@@ -29,6 +29,8 @@ add_test(NAME video_codec COMMAND test_video)
 
 add_test(NAME video_app COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_video_app.py)
 add_test(NAME adaptive_video COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_adaptive_video.py)
+add_test(NAME poster_video COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_poster.py)
+add_test(NAME video_render_styles COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_light_grid.py)
 
 add_test(NAME usb_host_framing COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_rpc.py)
 add_test(NAME tcon_lab_contract COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_tcon_lab.py)

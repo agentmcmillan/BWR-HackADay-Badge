@@ -49,17 +49,49 @@ bool bwr_video_parse(const uint8_t *bytes, size_t size, bwr_video *video)
                          .native_ink = native};
     return true;
 }
-bool bwr_video_draw(const bwr_video *video, unsigned frame, uint8_t *canvas)
+bool bwr_video_delta_rows(const bwr_video *video, unsigned frame, unsigned previous_frame,
+                          unsigned *first_row, unsigned *last_row)
 {
-    if (!video || !canvas || !video->frames || frame >= video->count)
+    if (!video || !video->frames || !first_row || !last_row || frame >= video->count ||
+        (previous_frame != UINT32_MAX && previous_frame >= video->count))
+        return false;
+    unsigned rows = video->native_ink ? 624 : 156;
+    unsigned row_bytes = video->native_ink ? 120 : 30;
+    static const uint8_t blank[120];
+    const uint8_t *current = video->frames + (size_t)frame * video->frame_bytes;
+    const uint8_t *previous = previous_frame == UINT32_MAX
+                                  ? NULL
+                                  : video->frames + (size_t)previous_frame * video->frame_bytes;
+    *first_row = rows;
+    *last_row = 0;
+    for (unsigned row = 0; row < rows; row++) {
+        const uint8_t *p = current + (size_t)row * row_bytes;
+        bool changed = previous ? memcmp(p, previous + (size_t)row * row_bytes, row_bytes) != 0
+                                : memcmp(p, blank, row_bytes) != 0;
+        if (changed) {
+            if (*first_row == rows)
+                *first_row = row;
+            *last_row = row;
+        }
+    }
+    return true;
+}
+
+bool bwr_video_draw_rows(const bwr_video *video, unsigned frame, unsigned first_row,
+                         unsigned last_row, uint8_t *canvas)
+{
+    unsigned rows = video && video->native_ink ? 624 : 156;
+    if (!video || !canvas || !video->frames || frame >= video->count || first_row > last_row ||
+        last_row >= rows)
         return false;
     const uint8_t *source = video->frames + (size_t)frame * video->frame_bytes;
     if (video->native_ink) {
-        memcpy(canvas + 48 * 120, source, 74880);
+        memcpy(canvas + (48 + first_row) * 120, source + first_row * 120,
+               (size_t)(last_row - first_row + 1) * 120);
         return true;
     }
     static const uint8_t pairs[4] = {0, 15, 240, 255};
-    for (unsigned row = 0; row < 156; row++) {
+    for (unsigned row = first_row; row <= last_row; row++) {
         uint8_t *out = canvas + (48 + row * 4) * 120;
         for (unsigned col = 0; col < 30; col++) {
             uint8_t bits = source[row * 30 + col];
@@ -70,6 +102,11 @@ bool bwr_video_draw(const bwr_video *video, unsigned frame, uint8_t *canvas)
             memcpy(out + repeat * 120, out, 120);
     }
     return true;
+}
+
+bool bwr_video_draw(const bwr_video *video, unsigned frame, uint8_t *canvas)
+{
+    return bwr_video_draw_rows(video, frame, 0, video && video->native_ink ? 623 : 155, canvas);
 }
 
 size_t bwr_video_unpack(const uint8_t *packed, size_t size, uint8_t *output, size_t capacity)

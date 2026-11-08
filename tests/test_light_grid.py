@@ -8,6 +8,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from light_grid import render_light_grid
+from poster import render_poster
 
 black = np.zeros((2, 156, 240), dtype=np.uint8)
 white = np.full_like(black, 255)
@@ -109,7 +110,7 @@ with tempfile.TemporaryDirectory() as directory:
     folder = Path(directory)
     source_file = folder / "source.local"
     source_file.touch()
-    for style in ["dither", "light-grid"]:
+    for style in ["dither", "light-grid", "poster"]:
         output = folder / (style + ".bwrv")
         arguments = [
             "prepare_video.py",
@@ -151,12 +152,17 @@ with tempfile.TemporaryDirectory() as directory:
                 data[32 : 32 + 4680] == b"\xff" * 4680
                 and data[32 + 4680 :] == b"\x00" * 4680
             )
-        else:
+        elif style == "light-grid":
             expected = np.packbits(
                 render_light_grid(raw), axis=2, bitorder="big"
             ).tobytes()
             assert data[32:] == expected
+        else:
+            expected = np.packbits(
+                render_poster(raw), axis=2, bitorder="big"
+            ).tobytes()
+            assert data[32:] == expected
         assert json.loads(stdout.getvalue())["style"] == style
 print(
-    "PASS converter style integration: existing BWRVID1 dimensions/header/CRC, default dither and MSB-first light-grid payload"
+    "PASS converter style integration: BWRVID1 header/CRC and MSB-first dither, light-grid and poster payloads"
 )

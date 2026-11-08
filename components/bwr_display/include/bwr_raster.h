@@ -24,3 +24,7 @@ bool bwr_stream_window(const uint8_t *source, unsigned half, const int bounds[4]
 
 // Scan both controller halves in row order, keeping shared cache lines hot.
 void bwr_changed_boxes(const uint8_t *a, const uint8_t *b, int bounds[2][4]);
+// Same scan, restricted to an inclusive row interval already proven by the
+// caller to contain every change.
+void bwr_changed_boxes_rows(const uint8_t *a, const uint8_t *b, int first_row,
+                            int last_row, int bounds[2][4]);

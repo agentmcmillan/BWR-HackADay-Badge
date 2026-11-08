@@ -113,7 +113,8 @@ bool bwr_stream_window(const uint8_t *source, unsigned half, const int bounds[4]
     return true;
 }
 
-void bwr_changed_boxes(const uint8_t *a, const uint8_t *b, int bounds[2][4])
+void bwr_changed_boxes_rows(const uint8_t *a, const uint8_t *b, int first_row,
+                            int last_row, int bounds[2][4])
 {
     for (unsigned half = 0; half < 2; half++) {
         bounds[half][0] = 60;
@@ -121,7 +122,9 @@ void bwr_changed_boxes(const uint8_t *a, const uint8_t *b, int bounds[2][4])
         bounds[half][2] = 672;
         bounds[half][3] = -1;
     }
-    for (int row = 0; row < 672; row++)
+    if (!a || !b || first_row < 0 || last_row >= 672 || first_row > last_row)
+        return;
+    for (int row = first_row; row <= last_row; row++)
         for (unsigned half = 0; half < 2; half++) {
             const uint8_t *p = a + row * 120 + half * 60, *q = b + row * 120 + half * 60;
             int *box = bounds[half];
@@ -141,4 +144,9 @@ void bwr_changed_boxes(const uint8_t *a, const uint8_t *b, int bounds[2][4])
                 box[2] = row;
             box[3] = row;
         }
+}
+
+void bwr_changed_boxes(const uint8_t *a, const uint8_t *b, int bounds[2][4])
+{
+    bwr_changed_boxes_rows(a, b, 0, 671, bounds);
 }

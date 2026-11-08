@@ -100,6 +100,30 @@ static void native_check(void)
     assert(!bwr_video_parse(bytes, size, &clip));
     free(bytes);
 }
+static void delta_check(void)
+{
+    memset(file + 32, 0, sizeof file - 32);
+    memset(file + 32 + BWR_VIDEO_FRAME + 12 * 30, 0xff, 8 * 30);
+    word(20, bwr_video_crc32(file + 32, sizeof file - 32));
+    bwr_video video;
+    assert(bwr_video_parse(file, sizeof file, &video));
+    unsigned first, last;
+    assert(bwr_video_delta_rows(&video, 0, UINT32_MAX, &first, &last) && first > last);
+    assert(bwr_video_delta_rows(&video, 1, 0, &first, &last) && first == 12 && last == 19);
+    assert(bwr_video_delta_rows(&video, 1, UINT32_MAX, &first, &last) && first == 12 &&
+           last == 19);
+    assert(!bwr_video_delta_rows(&video, 2, 0, &first, &last));
+    assert(!bwr_video_delta_rows(&video, 1, 2, &first, &last));
+    memset(canvas, 0xa5, sizeof canvas);
+    assert(bwr_video_draw_rows(&video, 1, first, last, canvas));
+    for (unsigned y = 0; y < 672; y++)
+        for (unsigned x = 0; x < 120; x++) {
+            uint8_t expected = y >= 48 + 12 * 4 && y < 48 + 20 * 4 ? 0xff : 0xa5;
+            assert(canvas[y * 120 + x] == expected);
+        }
+    assert(!bwr_video_draw_rows(&video, 1, 20, 19, canvas));
+    assert(!bwr_video_draw_rows(&video, 1, 0, 156, canvas));
+}
 int main(void)
 {
     assert(bwr_video_crc32((const uint8_t *)"123456789", 9) == 0xcbf43926u);
@@ -135,10 +159,11 @@ int main(void)
         file[i] ^= 1;
     }
     packed_check();
+    delta_check();
     word(12, 601);
     assert(!bwr_video_parse(file, sizeof file, &video));
     native_check();
     puts("PASS native/legacy video: CRC known vector, strict format/size/count checks, "
          "corrupt/truncated input "
-         "rejection, exact 4x expansion and preserved status bar");
+         "rejection, exact full/delta-row expansion and preserved status bar");
 }
