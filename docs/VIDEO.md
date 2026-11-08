@@ -63,7 +63,9 @@ PackBits literal/repeat records. `bwr_video_unpack` enforces the decoded bound,
 rejects reserved code 128, verifies CRC and validates the contained clip. An
 integrator may embed their local asset and pass its unpacked RAM allocation to
 `video_accept`. This optional media must remain outside public source. The
-benchmark tool's `--builtin` skips upload when a matching private clip is loaded.
+benchmark tool's `--builtin` skips upload only when the reported `loaded` frame
+count and `clip_crc32` payload checksum match the local reference. Older status
+adapters without `clip_crc32` must be updated before this option can be used.
 
 ## Optical checks
 

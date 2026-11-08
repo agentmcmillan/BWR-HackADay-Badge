@@ -11,7 +11,8 @@ void bwr_changed_box(const uint8_t *a, const uint8_t *b, unsigned half, int boun
 
 // start() retains the buffer until finish(). Both callbacks must complete
 // normally. Two distinct DMA-capable buffers let preparation overlap the
-// preceding transfer.
+// preceding transfer. The buffers must not overlap each other or the source frame;
+// overlapping ranges are rejected before any callback is invoked.
 typedef struct {
     void (*start)(void *context, const uint8_t *bytes, size_t count);
     void (*finish)(void *context);

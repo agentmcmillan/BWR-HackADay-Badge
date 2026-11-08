@@ -86,3 +86,42 @@ assert namespace["fault"]
 print(
     "PASS USB host framing: fragmented 256-byte replies, empty timeout reads, complete-line decoding, one request only, and fault detection"
 )
+
+# A recognized hardware fault is sticky even if a caller mistakenly sends again.
+rpc.fault = True
+before = len(rpc.serial.writes)
+try:
+    rpc.call("video_exit")
+except RuntimeError:
+    pass
+else:
+    raise AssertionError("A faulted RPC connection must reject every command")
+assert len(rpc.serial.writes) == before
+
+# Equal lengths do not establish that a built-in asset is the reference clip.
+benchmark = ast.parse((root / "tools/video_benchmark.py").read_text())
+verify = next(
+    node
+    for node in benchmark.body
+    if isinstance(node, ast.FunctionDef) and node.name == "verify_builtin_clip"
+)
+namespace = {}
+exec(
+    compile(
+        ast.Module(body=[verify], type_ignores=[]), "<builtin identity check>", "exec"
+    ),
+    namespace,
+)
+check = namespace["verify_builtin_clip"]
+check({"loaded": 323, "clip_crc32": 0x12345678}, 323, 0x12345678)
+for status in [
+    {"loaded": 323},
+    {"loaded": 323, "clip_crc32": 1},
+    {"loaded": 322, "clip_crc32": 0x12345678},
+]:
+    try:
+        check(status, 323, 0x12345678)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("Wrong or unverified built-in asset must be rejected")

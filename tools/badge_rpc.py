@@ -49,6 +49,8 @@ class BadgeRPC:
         return line
 
     def call(self, verb, *arguments, timeout=10):
+        if self.fault:
+            raise RuntimeError("Panel fail-stop: no further commands are allowed")
         self.sequence += 1
         fields = (
             ["@BC1", str(self.sequence), verb]

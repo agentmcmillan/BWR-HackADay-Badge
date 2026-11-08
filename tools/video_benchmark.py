@@ -13,6 +13,15 @@ import time
 import zlib
 from badge_rpc import BadgeRPC
 
+
+def verify_builtin_clip(status, frame_count, payload_crc):
+    """Do not benchmark a different private clip with an equal frame count."""
+    if status.get("loaded") != frame_count or status.get("clip_crc32") != payload_crc:
+        raise RuntimeError(
+            "Built-in clip identity does not match the supplied reference (frame count and CRC-32 required)"
+        )
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("port")
 parser.add_argument("clip", type=Path)
@@ -60,10 +69,7 @@ results = []
 try:
     rpc.connect(args.firmware_version)
     if args.builtin:
-        if rpc.call("video_status")["loaded"] != count:
-            raise RuntimeError(
-                "Built-in clip frame count does not match the supplied reference"
-            )
+        verify_builtin_clip(rpc.call("video_status"), count, crc)
     else:
         rpc.call("begin", "video", len(data))
         for offset in range(0, len(data), 768):

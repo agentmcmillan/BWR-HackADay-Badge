@@ -13,3 +13,7 @@ __pycache__/
 *.mpeg
 *.webm
 *.mov
+*.bwrp
+*.avi
+*.mkv
+*.m4v

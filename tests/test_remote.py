@@ -29,7 +29,7 @@ int main(void){refresh_request q;char json[1024];refresh_result result={.calls=6
  assert(refresh_remote_submit(0,8,12));refresh_remote_stop(false);
  assert(!refresh_remote_take(&q)&&refresh_remote_control(&leave)&&!leave);
  refresh_remote_running(false);assert(refresh_remote_submit(0,20,1));
- assert(refresh_remote_take(&q));refresh_remote_stop(true);assert(refresh_remote_control(&leave)&&leave);
+ assert(refresh_remote_take(&q));refresh_remote_stop(true);refresh_remote_stop(false);assert(refresh_remote_control(&leave)&&leave);
  refresh_remote_active(false);assert(!refresh_remote_is_active()&&!refresh_remote_submit(0,4,60)&&!locked);
  puts("PASS bounded remote benchmark queue, concurrency exclusion, status snapshot, cancel/exit and invalid-input rejection");}
 """

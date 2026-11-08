@@ -17,4 +17,5 @@ jobs:
       - run: cmake --build build --parallel 2
       - run: ctest --test-dir build --output-on-failure
       - run: node tests/test_eink_rendering.js
+      - run: node tests/test_serial_upload.js
       - run: python -m py_compile tools/*.py tests/*.py

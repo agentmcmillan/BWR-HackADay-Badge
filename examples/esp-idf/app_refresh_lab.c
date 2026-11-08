@@ -126,6 +126,8 @@ void app_refresh_lab(void)
     ui_protect_footer(false);
     if (!ui_refresh_lab_begin(clocks[clock])) {
         refresh_remote_active(false);
+        ui_refresh_lab_end();
+        ui_close();
         ui_refresh_shortcut(true);
         return;
     }
@@ -152,7 +154,8 @@ void app_refresh_lab(void)
             planned_frames = target;
             for (clock = 0; clocks[clock] != request.mhz; clock++) {
             }
-            ui_refresh_lab_begin(clocks[clock]);
+            if (!ui_refresh_lab_begin(clocks[clock]))
+                break;
             button = BWR_BTN_A;
         }
         if (button == BWR_BTN_B)
@@ -164,7 +167,8 @@ void app_refresh_lab(void)
                 pattern = (pattern + 1) % LAB_PATTERN_COUNT;
             else {
                 clock = (clock + 1) % 5;
-                ui_refresh_lab_begin(clocks[clock]);
+                if (!ui_refresh_lab_begin(clocks[clock]))
+                    break;
             }
             scene(pattern, clock, false);
             pattern_draw(pattern, 0);

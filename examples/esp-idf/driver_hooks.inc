@@ -4,7 +4,8 @@
 #include "game_tag.h"
 #include "refresh_remote.h"
 #include <stdatomic.h>
-static bool game_tag_active, game_tag_enabled, game_tag_valid, game_source_valid, game_tag_native;
+static atomic_bool game_tag_active, game_tag_enabled;
+static bool game_tag_valid, game_source_valid, game_tag_native;
 static atomic_bool game_tag_busy;
 static int64_t game_tag_cleaned_at;
 static EXT_RAM_BSS_ATTR uint8_t game_logical[PLANE], game_ink[PLANE], game_red[PLANE];

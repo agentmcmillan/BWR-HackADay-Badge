@@ -71,7 +71,7 @@ void refresh_remote_stop(bool leave)
     taskENTER_CRITICAL(&mux);
     pending = false;
     stop = true;
-    exit_app = leave;
+    exit_app |= leave;
     taskEXIT_CRITICAL(&mux);
 }
 bool refresh_remote_control(bool *leave)

@@ -20,7 +20,8 @@ change the pigment waveform, power rails or controller session limits.
 
 The stream API does not own a bus, change a clock or issue panel commands. The
 host must serialize panel operations and provide distinct buffers with valid DMA
-alignment/lifetimes. Buffers remain valid until `finish` returns. The ESP32-S3
+alignment/lifetimes. The helper rejects buffers that overlap each other or the
+source frame before invoking a callback. Buffers remain valid until `finish` returns. The ESP32-S3
 integration uses two 4096-byte internal buffers, adding 4 KB over the preceding
 single-buffer driver. The ESP-IDF [SPI master documentation](https://docs.espressif.com/projects/esp-idf/en/v6.0.2/esp32s3/api-reference/peripherals/spi_master.html)
 describes bus acquisition and separate polling start/end calls.

@@ -59,6 +59,13 @@ void bwr_changed_box(const uint8_t *a, const uint8_t *b, unsigned half, int boun
     }
 }
 
+// Compare address differences rather than adding lengths, which could wrap.
+static bool overlaps(const void *a, size_t a_size, const void *b, size_t b_size)
+{
+    uintptr_t left = (uintptr_t)a, right = (uintptr_t)b;
+    return left <= right ? right - left < a_size : left - right < b_size;
+}
+
 bool bwr_stream_window(const uint8_t *source, unsigned half, const int bounds[4], uint8_t *first,
                        uint8_t *second, size_t capacity, bool reverse_bits,
                        const bwr_stream_ops *ops)
@@ -66,6 +73,10 @@ bool bwr_stream_window(const uint8_t *source, unsigned half, const int bounds[4]
     if (!source || !bounds || !first || !second || first == second || !capacity || !ops ||
         !ops->start || !ops->finish || half > 1 || bounds[0] < 0 || bounds[1] >= 60 ||
         bounds[2] < 0 || bounds[3] >= 672 || bounds[1] < bounds[0] || bounds[3] < bounds[2])
+        return false;
+    if (overlaps(first, capacity, second, capacity) ||
+        overlaps(source, 960u * 672u / 8u, first, capacity) ||
+        overlaps(source, 960u * 672u / 8u, second, capacity))
         return false;
     uint8_t *buffers[2] = {first, second};
     size_t used = 0;

@@ -47,7 +47,7 @@ static void ui_close(void){closed=true;}
 static void ui_refresh_shortcut(bool on){shortcut=on;}
 static void ui_protect_overlay(const uint8_t *mask){assert(!mask);}
 static void ui_protect_footer(bool on){assert(!on);}
-bool ui_refresh_lab_begin(unsigned mhz){assert(mhz==4||mhz==20);return true;}
+bool ui_refresh_lab_begin(unsigned mhz){assert(mhz==4||mhz==20);return scenario!=2;}
 void ui_refresh_lab_end(void){ends++;}
 void ui_refresh_lab_sample(refresh_sample *out){*out=sample;}
 static int btn_get(int timeout){
@@ -61,16 +61,19 @@ checks = r"""
 static void put(uint8_t *p,uint32_t n){for(unsigned i=0;i<4;i++)p[i]=(uint8_t)(n>>(8*i));}
 int main(void){
  video_init();assert(!video_request(20,1)&&!video_active());
- for(scenario=0;scenario<2;scenario++){
+ for(scenario=0;scenario<3;scenario++){
   size_t n=32+4*4680;uint8_t *data=calloc(1,n);assert(data);
   memcpy(data,"BWRVID1",8);data[8]=240;data[10]=156;put(data+12,4);put(data+16,1500);
   for(unsigned i=0;i<4;i++)memset(data+32+i*4680,i&1?0:255,4680);
   put(data+20,bwr_video_crc32(data+32,n-32));assert(video_accept(data,n));
+  char identity[1024],expected_crc[64];video_status(identity,sizeof identity);
+  snprintf(expected_crc,sizeof expected_crc,"\"clip_crc32\":%lu",(unsigned long)bwr_video_crc32(data+32,n-32));assert(strstr(identity,expected_crc));
   idle_calls=draws=ends=0;shortcut=true;closed=false;
   app_video();assert(!video_active()&&!locked&&shortcut&&closed&&ends>=1);
   char status[1024];video_status(status,sizeof status);puts(status);
-  assert(strstr(status,scenario==0?"\"calls\":4":"\"calls\":2"));
+  assert(strstr(status,scenario==0?"\"calls\":4":scenario==1?"\"calls\":2":"\"calls\":0"));
  }
+ video_stop(true);video_stop(false);assert(leave);
  free(clip_bytes);clip_bytes=NULL;
  puts("PASS video app: immutable owned clip, bounded playback, immediate Home cancellation, status/results and default-clock/shortcut cleanup");
 }

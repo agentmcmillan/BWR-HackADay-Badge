@@ -98,6 +98,11 @@ static void check_stream(void)
                 assert(i == output_size && !pending_bytes &&
                        transfers == (i + capacity - 1) / capacity);
             }
+    int full[4] = {0, 59, 0, 671};
+    size_t before_transfers = transfers;
+    assert(!bwr_stream_window(actual, 0, full, buffers[0], buffers[0] + 1, 4096, true, &ops));
+    assert(!bwr_stream_window(actual, 0, full, actual + 1, buffers[1], 4096, true, &ops));
+    assert(transfers == before_transfers && !pending_bytes);
     int bad[4] = {0, 60, 0, 671};
     assert(!bwr_stream_window(actual, 0, bad, buffers[0], buffers[1], 4096, true, &ops));
 }

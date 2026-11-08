@@ -9,6 +9,7 @@ class BadgeSerial {
     this.pending = new Map();
     this.sequence = 0;
     this.session = '';
+    this.uploading = false;
     this.onDisconnect = () => {};
   }
   async connect(port) {
@@ -101,19 +102,30 @@ class BadgeSerial {
     }
   }
   async upload(kind, bytes, extra = '') {
-    await this.rpc('begin', `${kind} ${bytes.length}${extra ? ' ' + extra : ''}`);
+    if (this.uploading) throw Error('Another upload is in progress. Wait for it to finish.');
+    this.uploading = true;
+    const session = this.session;
     try {
-      for (let offset = 0; offset < bytes.length; offset += 768) {
-        const block = bytes.subarray(offset, offset + 768);
-        const encoded = btoa(String.fromCharCode(...block));
-        await this.rpc('chunk', `${offset} ${encoded}`);
+      await this.rpc('begin', `${kind} ${bytes.length}${extra ? ' ' + extra : ''}`);
+      try {
+        for (let offset = 0; offset < bytes.length; offset += 768) {
+          if (this.session !== session) throw Error('Badge connection changed during upload.');
+          const block = bytes.subarray(offset, offset + 768);
+          const encoded = btoa(String.fromCharCode(...block));
+          await this.rpc('chunk', `${offset} ${encoded}`);
+        }
+        if (this.session !== session) throw Error('Badge connection changed during upload.');
+        return await this.retryBusy('commit');
+      } catch (error) {
+        // An old upload must never abort a new session's transaction.
+        if (session && this.session === session) await this.rpc('abort').catch(() => {});
+        throw error;
       }
-      return await this.retryBusy('commit');
-    } catch (error) {
-      if (this.session) await this.rpc('abort').catch(() => {});
-      throw error;
+    } finally {
+      this.uploading = false;
     }
   }
+
 }
 const badgeSerial = new BadgeSerial();
 const nativeFetch = window.fetch.bind(window);
