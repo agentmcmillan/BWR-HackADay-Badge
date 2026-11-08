@@ -86,6 +86,7 @@ dctl_trial DCTL ROWS           # DCTL=-1 omits register 0x01
 drfw_trial END ROWS            # END restricted to 0xA8 or 0xA9
 scan_hold ROWS PULLS            # ROWS=1..624, PULLS=1..120
 scan_pingpong ROWS PULLS         # preloads two states, then bare triggers
+scan_pingpong_edge ROWS PULLS    # same data and waveform, finer BUSY timing
 ```
 
 These are not arbitrary register-write commands. The complete firmware is not
@@ -216,6 +217,34 @@ synthetic contract test checks the frequency-to-reversal conversion. The
 line was below reliable camera resolution, so that exact geometry does not have
 a separate contrast measurement.
 
+### BUSY completion edge
+
+The original pull helper slept for at least 5 ms, then sampled master BUSY with
+an RTOS-tick delay between reads. On this build that delay can span roughly
+1–2 ms, so the host notices a completed waveform late. Firmware 0.8.50 added a
+bounded comparison that leaves the RAM priming, `0x15` trigger, gate window and
+waveform unchanged. The edge path instead verifies that BUSY asserted low,
+yields through the first 30 ms of the known waveform, and then samples for the
+ready edge every 25 us.
+
+| Rows | RTOS wait | Edge wait | Gain |
+| ---: | ---: | ---: | ---: |
+| 1 | 22.717 triggers/sec | **24.019 triggers/sec** | 5.73% |
+| 16 | 17.744 triggers/sec | **18.632 triggers/sec** | 5.01% |
+
+Across both 120-trigger edge runs, every command
+asserted BUSY within 135 us and every BUSY cycle completed. The one-row edge
+cycles ranged from 41,592 to 41,685 us; this low spread locates the remaining
+floor inside the controller waveform and gate scan, not host scheduling. A
+separate eight-frame normal partial-update smoke test also completed after the
+edge wait was adopted in that path.
+
+The raw electrical results are in
+[`data/tcon-edge-wait-2026-11-08.csv`](../data/tcon-edge-wait-2026-11-08.csv).
+No camera was used for 0.8.50, so 24.019 Hz is a controller-cycle ceiling, not a
+new optical-frame claim. The 0.8.49 16-row run remains the optical confirmation
+of the same preloaded-RAM trigger mechanism.
+
 ## Conclusion
 
 None of TCON, oscillator, DCTL or the tested DRFW endpoint is a hidden refresh
@@ -225,12 +254,15 @@ conformance, but the experiment does not support a speed claim.
 
 The successful speed work is elsewhere: 20 MHz bulk SPI, byte-oriented raster
 operations, overlapped DMA preparation, narrow changed-row gate scans, a held
-controller session and a deliberately short transition waveform. The measured
+controller session, completion-edge timing and a deliberately short transition
+waveform. The measured
 row law makes the key optimization explicit: keep animation inside the smallest
 possible dirty-row window and avoid reopening the controller. For a repeating
 two-state effect, preloading both controller RAM states removes all per-frame
 RAM traffic and reaches 23.046 trigger cycles/sec at one row. The same mechanism
-is optically confirmed at 17.998 visible reversals/sec with a 16-row band. See
+reaches 24.019 controller cycles/sec with completion-edge timing. It is
+optically confirmed at 17.998 visible reversals/sec with a 16-row band on the
+preceding build. See
 [refresh benchmarks](BENCHMARKS.md) and the [refresh pipeline](REFRESH_PIPELINE.md).
 The remaining roughly 543 ms full-height pull is controller scan/waveform time,
 not host transfer time.
@@ -249,6 +281,7 @@ python3 tools/tcon_lab.py /dev/cu.usbmodem101 --version 0.8.47 --suite drfw
 python3 tools/tcon_lab.py /dev/cu.usbmodem101 --version 0.8.47 --suite scan
 python3 tools/tcon_lab.py /dev/cu.usbmodem101 --version 0.8.48 --suite hold
 python3 tools/tcon_lab.py /dev/cu.usbmodem101 --version 0.8.49 --suite pingpong
+python3 tools/tcon_lab.py /dev/cu.usbmodem101 --version 0.8.50 --suite edge
 ```
 
 To reproduce the successful optical analysis on a locally held recording:

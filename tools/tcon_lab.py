@@ -71,9 +71,17 @@ SCAN_ROWS = (16, 32, 64, 128, 256, 384, 624)
 SCAN = [(0xA9, rows) for rows in (*SCAN_ROWS, *reversed(SCAN_ROWS), *SCAN_ROWS)]
 HOLD = [(rows, 8) for rows in (16, 8, 4, 2, 1)] + [(1, 120)]
 PINGPONG = [(rows, 120) for rows in (16, 8, 4, 2, 1)]
+EDGE = [
+    (verb, rows, 120)
+    for rows in (1, 16)
+    for verb in ("scan_pingpong", "scan_pingpong_edge")
+]
 
 
 def call_profile(rpc, suite, profile):
+    if suite == "edge":
+        verb, rows, pulls = profile
+        return rpc.call(verb, rows, pulls, timeout=30)
     if suite in ("hold", "pingpong"):
         rows, pulls = profile
         verb = "scan_hold" if suite == "hold" else "scan_pingpong"
@@ -94,7 +102,7 @@ def main():
     parser.add_argument(
         "--suite",
         required=True,
-        choices=("otp", "tcon", "dctl", "drfw", "scan", "hold", "pingpong"),
+        choices=("otp", "tcon", "dctl", "drfw", "scan", "hold", "pingpong", "edge"),
     )
     args = parser.parse_args()
 
@@ -118,6 +126,7 @@ def main():
                 "scan": SCAN,
                 "hold": HOLD,
                 "pingpong": PINGPONG,
+                "edge": EDGE,
             }[args.suite]
             for profile in profiles:
                 result = call_profile(rpc, args.suite, profile)

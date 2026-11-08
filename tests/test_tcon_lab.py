@@ -30,6 +30,12 @@ assert len(module.SCAN) == 3 * len(module.SCAN_ROWS)
 assert all(end == 0xA9 and 16 <= rows <= 624 for end, rows in module.SCAN)
 assert module.HOLD == [(16, 8), (8, 8), (4, 8), (2, 8), (1, 8), (1, 120)]
 assert module.PINGPONG == [(16, 120), (8, 120), (4, 120), (2, 120), (1, 120)]
+assert module.EDGE == [
+    ("scan_pingpong", 1, 120),
+    ("scan_pingpong_edge", 1, 120),
+    ("scan_pingpong", 16, 120),
+    ("scan_pingpong_edge", 16, 120),
+]
 assert {end for end, _ in module.DRFW} == {0xA8, 0xA9}
 assert {value for value, _ in module.DCTL} == {-1, 0, 1, 8, 9}
 assert all(16 <= rows <= 624 and rows % 16 == 0 for _, _, rows in module.TCON)
@@ -43,6 +49,9 @@ assert rpc.calls == [(('scan_hold', 1, 120), {'timeout': 30})]
 rpc.calls.clear()
 module.call_profile(rpc, "pingpong", (1, 120))
 assert rpc.calls == [(('scan_pingpong', 1, 120), {'timeout': 30})]
+rpc.calls.clear()
+module.call_profile(rpc, "edge", ("scan_pingpong_edge", 1, 120))
+assert rpc.calls == [(('scan_pingpong_edge', 1, 120), {'timeout': 30})]
 
 otp = json.loads((root / "data/tcon-otp-b1-2026-11-08.json").read_text())
 otp_bytes = bytes.fromhex(otp["hex"])
@@ -67,6 +76,18 @@ optical = [row for row in pingpong if row["optical_status"].startswith("confirme
 assert len(optical) == 1
 assert optical[0]["rows"] == "16" and optical[0]["pulls"] == "120"
 assert abs(float(optical[0]["held_trigger_hz"]) - 120_000_000 / 6_667_570) < 0.0001
+
+with (root / "data/tcon-edge-wait-2026-11-08.csv").open(newline="") as source:
+    edge_wait = list(csv.DictReader(source))
+full_edge = [row for row in edge_wait if row["pulls"] == "120"]
+assert len(full_edge) == 4
+one_edge = next(
+    row
+    for row in full_edge
+    if row["verb"].endswith("_edge") and row["rows"] == "1"
+)
+assert abs(float(one_edge["trigger_hz"]) - 120_000_000 / 4_996_143) < 0.0001
+assert int(one_edge["max_assert_us"]) <= 135
 
 with (root / "data/tcon-register-trials-2026-11-08.csv").open(newline="") as source:
     register_trials = list(csv.DictReader(source))

@@ -79,6 +79,10 @@ measurements are in
 [`data/tcon-pingpong-2026-11-08.csv`](data/tcon-pingpong-2026-11-08.csv).
 `tools/analyze_pingpong.py` reproduces the video-frequency analysis without
 publishing the private camera recording.
+Transition-aware BUSY timing then removed RTOS polling overshoot: bounded
+one-row trigger cadence reached 24.019 Hz, while 16 rows reached 18.632 Hz.
+The electrical A/B results are in
+[`data/tcon-edge-wait-2026-11-08.csv`](data/tcon-edge-wait-2026-11-08.csv).
 
 The latest optimized 20 MHz checkerboard run completed 60 physical pulls at
 1.503 frames/sec, about 17% above the original 4 MHz path. Camera analysis

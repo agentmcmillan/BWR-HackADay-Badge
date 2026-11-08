@@ -1,0 +1,7 @@
+run,verb,rows,pulls,total_us,trigger_hz,pull_us,best_us,worst_us,assert_us,max_assert_us,optical_status
+132202,scan_pingpong,1,8,353664,22.6203,353581,43095,45075,0,0,not recorded
+132202,scan_pingpong_edge,1,8,333364,23.9978,333282,41620,41745,647,159,not recorded
+132236,scan_pingpong,1,120,5282491,22.7166,5281675,42761,45532,0,0,not recorded
+132236,scan_pingpong_edge,1,120,4996143,24.0185,4995556,41592,41685,7751,122,not recorded
+132236,scan_pingpong,16,120,6762949,17.7437,6761845,54736,57731,0,0,not recorded
+132236,scan_pingpong_edge,16,120,6440532,18.6320,6439657,53600,54022,8749,135,not recorded
