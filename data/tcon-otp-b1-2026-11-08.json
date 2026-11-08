@@ -1,8 +1,11 @@
 {
   "panel": "Pervasive Displays E2969JS0B1 960x672 BWR",
-  "bytes": 88,
+  "bytes": 128,
   "dummy": 255,
   "b1_signature": true,
-  "sha256": "9913d1b8315415b820becf5ac5ac01df8f4c7e4229c51f286b2f6518a7ae975e",
-  "hex": "10640101535050304c430125003b00a80900000010003b00009f02018000ffffffffffffffffffff84500000011f9f818a0a0000011f9f818a0a0200017fff83870a0cff007fff81ffffffffffffffffffffffffffffffff"
+  "sha256": "f7c0df797b398b77746d4b349af194a2235e349b8e1a6547a406ac5bd70d0a69",
+  "prefix_88_sha256": "9913d1b8315415b820becf5ac5ac01df8f4c7e4229c51f286b2f6518a7ae975e",
+  "identity_offset": 104,
+  "identity_ascii": "TA2969JS0B10LC",
+  "hex": "10640101535050304c430125003b00a80900000010003b00009f02018000ffffffffffffffffffff84500000011f9f818a0a0000011f9f818a0a0200017fff83870a0cff007fff81ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5441323936394a53304231304c43ffffffffffffffffffff"
 }

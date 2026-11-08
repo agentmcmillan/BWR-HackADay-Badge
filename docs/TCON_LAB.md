@@ -46,8 +46,8 @@ by the stock software, is not connected to the panel. The B1 read sequence is:
    both COGs. Do not start the booster or issue a refresh.
 3. Select only the master COG and send bare index `0xB9` at 50 kHz.
 4. Keep its chip select asserted, turn GPIO47 around, and read one dummy byte
-   followed by the requested OTP bytes. The first lab firmware requested 88;
-   the vendor's matching `0B` path requests 128.
+   followed by 128 OTP bytes. The first lab firmware requested 88; firmware
+   0.8.58 reproduced the vendor's complete matching `0B` read.
 5. Return reset and chip-select pins to the passive post-session state.
 
 Selecting both COGs for step 3 would make two outputs drive the shared data
@@ -56,15 +56,14 @@ transactions under the same asserted chip select; the target rejects a combined
 TX/RX half-duplex descriptor.
 
 The captured dummy was `0xFF`. All three B1 signatures passed: byte `0x16` was
-`0x3B`, byte `0x0D` was `0x3B`, and byte `0x28` had bit 7 set. The verified
-88-byte prefix and its SHA-256 are published in
+`0x3B`, byte `0x0D` was `0x3B`, and byte `0x28` had bit 7 set. The complete
+128-byte result and its SHA-256 are published in
 [`data/tcon-otp-b1-2026-11-08.json`](../data/tcon-otp-b1-2026-11-08.json).
-It was originally described as complete, but the vendor's exact legacy `0B`
-implementation reads 128 bytes. Bytes 88--127 remain uncaptured. None of the
-decoded fields below depends on that missing tail. A future lab firmware should
-read and hash all 128 bytes before interpreting reserved or capability fields.
-OTP is panel-specific, so reproduce the read instead of assuming this prefix
-fits another panel. The decoded fields are:
+Its first 88 bytes match the earlier capture and SHA-256 exactly. Bytes 88--103
+and 118--127 are `0xFF`; bytes 104--117 decode as `TA2969JS0B10LC`. The newly
+captured tail is identification/reserved space, not an additional timing table
+or fast-mode selector. OTP is panel-specific, so reproduce the read instead of
+assuming this record fits another panel. The decoded fields are:
 
 | OTP field | Register | Captured bytes |
 | --- | --- | --- |

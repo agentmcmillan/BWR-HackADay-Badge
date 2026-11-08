@@ -15,15 +15,17 @@ do not currently have machine code to disassemble.
 ### Factory OTP
 
 The master COG returns one dummy byte followed by OTP data through the
-documented B1 `0xB9` opener. The first lab firmware requested 88 fuse bytes;
-that verified prefix and checksum are in
+documented B1 `0xB9` opener. The complete 128-byte record and checksum are in
 [`data/tcon-otp-b1-2026-11-08.json`](../data/tcon-otp-b1-2026-11-08.json).
 Known fields include TCON, DCTL, DRFW, RAM and display windows, STV, two unnamed
 settings and four DC/DC ramp records.
 
-Pervasive Displays' exact legacy `eScreen_EPD_969_JS_0B` path reads 128 bytes.
-The published result is therefore a prefix, not a complete OTP dump. Capture
-and hash bytes 88--127 before interpreting reserved or feature fields.
+Pervasive Displays' exact legacy `eScreen_EPD_969_JS_0B` path reads 128 bytes,
+which firmware 0.8.58 reproduced at 50 kHz with the booster off. The original
+88-byte prefix matched the earlier capture and SHA-256 exactly. In the new tail,
+bytes 88--103 and 118--127 are `0xFF`; bytes 104--117 contain the ASCII panel
+identity `TA2969JS0B10LC`. The tail exposes no additional timing fields or
+fast-mode selector.
 
 OTP is configuration, not executable code. It describes how the generic COG is
 initialized for this panel and how its booster ramps. The values are

@@ -55,10 +55,16 @@ assert rpc.calls == [(('scan_pingpong_edge', 1, 120), {'timeout': 30})]
 
 otp = json.loads((root / "data/tcon-otp-b1-2026-11-08.json").read_text())
 otp_bytes = bytes.fromhex(otp["hex"])
-assert len(otp_bytes) == otp["bytes"] == 88
+assert len(otp_bytes) == otp["bytes"] == 128
 assert hashlib.sha256(otp_bytes).hexdigest() == otp["sha256"]
+assert hashlib.sha256(otp_bytes[:88]).hexdigest() == otp["prefix_88_sha256"]
 assert otp_bytes[0x16] == 0x3B and otp_bytes[0x0D] == 0x3B
 assert otp_bytes[0x28] & 0x80
+identity = otp["identity_ascii"].encode()
+offset = otp["identity_offset"]
+assert otp_bytes[offset : offset + len(identity)] == identity
+assert otp_bytes[88:offset] == b"\xff" * (offset - 88)
+assert otp_bytes[offset + len(identity) :] == b"\xff" * (128 - offset - len(identity))
 
 with (root / "data/tcon-held-scan-2026-11-08.csv").open(newline="") as source:
     held = list(csv.DictReader(source))
