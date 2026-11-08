@@ -19,6 +19,23 @@ the badge team's
 and
 [`rendered_luts.py`](https://github.com/Hack-a-Day/2026-Billboard_Badge/blob/9c55a516632eddfc2fe774e393407c0765e8cb13/firmware/badge/data/rendered_luts.py).
 
+### Vendor-documentation scope
+
+The exact public software selector for this badge is
+[`eScreen_EPD_969_JS_0B`](https://github.com/PervasiveDisplays/PDLS_EXT3_Basic_Global/blob/main/src/hV_List_Screens.h):
+9.69-inch, `J` (black/white/red) film and controller `0B`. The vendor's
+[film table](https://docs.pervasivedisplays.com/knowledge/Software/Volume2/Chapter1/Section6.html#film)
+classifies `J` as normal-update film; `P` and `K` are the embedded-fast-update
+films.
+
+The current Wide Large documentation instead describes a newer `0x96`/`K`
+generation. It is useful as a reference for OTP organization, old/new image
+planes and the trigger sequence, but it is not an electrical specification for
+this `J/0B` panel. In particular, its 20 MHz write limit must not be relabeled
+as this panel's supported limit. The archived matching large-panel material
+specifies 5 MHz writes, so the measured 20 MHz badge path is a deliberate 4x
+interface overclock.
+
 ## Factory OTP read
 
 GPIO47 is the panel's bidirectional three-wire data signal. GPIO45, named MISO
@@ -29,7 +46,8 @@ by the stock software, is not connected to the panel. The B1 read sequence is:
    both COGs. Do not start the booster or issue a refresh.
 3. Select only the master COG and send bare index `0xB9` at 50 kHz.
 4. Keep its chip select asserted, turn GPIO47 around, and read one dummy byte
-   followed by 88 OTP bytes.
+   followed by the requested OTP bytes. The first lab firmware requested 88;
+   the vendor's matching `0B` path requests 128.
 5. Return reset and chip-select pins to the passive post-session state.
 
 Selecting both COGs for step 3 would make two outputs drive the shared data
@@ -38,11 +56,15 @@ transactions under the same asserted chip select; the target rejects a combined
 TX/RX half-duplex descriptor.
 
 The captured dummy was `0xFF`. All three B1 signatures passed: byte `0x16` was
-`0x3B`, byte `0x0D` was `0x3B`, and byte `0x28` had bit 7 set. The complete
-88-byte capture and its SHA-256 are published in
+`0x3B`, byte `0x0D` was `0x3B`, and byte `0x28` had bit 7 set. The verified
+88-byte prefix and its SHA-256 are published in
 [`data/tcon-otp-b1-2026-11-08.json`](../data/tcon-otp-b1-2026-11-08.json).
-OTP is panel-specific, so reproduce the read instead of assuming this blob fits
-another panel. The decoded fields are:
+It was originally described as complete, but the vendor's exact legacy `0B`
+implementation reads 128 bytes. Bytes 88--127 remain uncaptured. None of the
+decoded fields below depends on that missing tail. A future lab firmware should
+read and hash all 128 bytes before interpreting reserved or capability fields.
+OTP is panel-specific, so reproduce the read instead of assuming this prefix
+fits another panel. The decoded fields are:
 
 | OTP field | Register | Captured bytes |
 | --- | --- | --- |
@@ -175,8 +197,11 @@ one-row updates are useful only when the moving content actually fits that row.
 
 ### Preloaded trigger-only cadence
 
-The existing driver model assumes that the controller swaps its old/new RAM
-planes after a pull. Firmware 0.8.49 tested the resulting two-state strategy:
+The legacy vendor path defines `0x10` as the black plane and `0x11` as the red
+plane; it does not document them as the newer generation's old/new fast-update
+pair. Our driver experimentally treats the available RAM states as a
+differential two-state path and assumes they swap after a pull. Firmware 0.8.49
+tested that custom strategy:
 prime the inverse band into the second RAM plane once, set the gate window once,
 then issue only the two-byte `0x15` command for each subsequent frame. There is
 no per-frame drawing, changed-pixel scan or RAM data transfer in the timed loop.
@@ -258,10 +283,11 @@ multiplier. TCON `0x25` and DRFW `0xA9` remain the measured baseline; the B1
 oscillator write is omitted. DCTL may be written as the factory value for
 conformance, but the experiment does not support a speed claim.
 
-The successful speed work is elsewhere: 20 MHz bulk SPI, byte-oriented raster
-operations, overlapped DMA preparation, narrow changed-row gate scans, a held
-controller session, completion-edge timing and a deliberately short transition
-waveform. The measured row law makes the key optimization explicit: keep
+The successful speed work is elsewhere: experimentally overclocked 20 MHz bulk
+SPI, byte-oriented raster operations, overlapped DMA preparation, narrow
+changed-row gate scans, a held controller session, completion-edge timing and a
+deliberately short transition waveform. The measured row law makes the key
+optimization explicit: keep
 animation inside the smallest
 possible dirty-row window and avoid reopening the controller. For a repeating
 two-state effect, preloading both controller RAM states removes all per-frame

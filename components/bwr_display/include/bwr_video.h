@@ -7,11 +7,15 @@ enum {
     BWR_VIDEO_HEADER = 32,
     BWR_VIDEO_FRAME = 4680,
     BWR_VIDEO_MAX_FRAMES = 600,
+    BWR_VIDEO_FLAG_CYCLIC_BASE = 1,
     BWR_VIDEO_MAX_BYTES = BWR_VIDEO_HEADER + BWR_VIDEO_FRAME * BWR_VIDEO_MAX_FRAMES
 };
 typedef struct {
     const uint8_t *frames;
     unsigned count, fps_milli;
+    // Zero for legacy clips. A nonzero value means frame zero is a one-time
+    // complete initializer and loop playback starts at this frame index.
+    unsigned loop_start;
     // Native: zero means continuous; otherwise hold 1000–30000 ms after shutdown.
     unsigned frame_bytes, hold_ms;
     bool native_ink;

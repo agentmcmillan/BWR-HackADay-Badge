@@ -78,6 +78,21 @@ dither and preserves white holes in faces and clothing, so narrow-band pulls
 reinforce solid subject shapes instead of accumulating a field of microdots.
 The default threshold is 112; use `--poster-threshold` for other source grading.
 
+`--ink-release-frames 3` adds asymmetric temporal smoothing before adaptive
+scheduling. New black pixels appear immediately, while a black pixel is erased
+only after three consecutive source frames agree that it is paper. This avoids
+gray/dither traffic, bridges one- or two-frame threshold chatter, and often
+reduces dirty-row churn. It costs no ESP32 playback time because the filter runs
+only in the offline converter. Cyclic history is used so the smoothing state
+does not pulse at the clip boundary. Values from 2 to 4 are the useful range;
+larger values create increasingly visible black motion trails.
+
+Temporal holds are transparent: if a source step produces no new binary ink
+state, the adaptive compiler emits no panel operation. It never substitutes an
+all-white placeholder. White release is likewise local; after the hold count is
+met, only the selected dirty band is erased. This keeps skipped source time from
+costing a physical pull or flashing the whole subject away.
+
 The last states return the image to white one band at a time. Because Video
 blanks before playback, both the end-to-start wrap and every internal transition
 remain within the requested band height. This adds closure operations and makes
@@ -87,6 +102,27 @@ source, closure and total operation counts plus mean/maximum changed rows.
 Adaptive output prioritizes local motion rather than simultaneous complete
 frames. Its header FPS records source sampling for provenance; playback remains
 unpaced and runs at the panel's physical limit.
+
+For persistent subjects, `--cyclic-base` uses a different loop contract. The
+compiler measures ink occupancy over the whole clip and stores the stable base
+as frame zero. Firmware draws that complete base once, outside timed playback.
+Every later operation compares the simulated panel with the newest source target,
+updates only the highest-value stale band, and replaces any unfinished older
+target. Its error mask includes both the old and new locations of moving ink, so
+hands and silhouette edges are erased as well as redrawn. Age and the optional
+focus rectangle prevent low-motion regions from starving.
+
+A cyclic-base stream with a nonempty base returns to that base one band at a
+time, rather than inserting an all-white closure. In `BWRVID1`, header flag bit
+0 marks this contract and the
+reserved word carries the first looping frame index (currently 1). Unknown flags,
+zero/out-of-range loop indices, and cyclic flags on native-ink clips are rejected.
+Legacy zero-flag clips retain their existing white-closure behavior.
+
+USB benchmarks may request up to 600 operations from a cyclic-base clip. The
+loop wraps without reinstalling frame zero, so a 438-operation request is about
+30 seconds at the measured 14.6 operations/second cadence. Legacy clips remain
+bounded by their stored frame count.
 
 ### Row-band playback adapter
 

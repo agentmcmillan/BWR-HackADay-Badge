@@ -107,6 +107,18 @@ static void delta_check(void)
     word(20, bwr_video_crc32(file + 32, sizeof file - 32));
     bwr_video video;
     assert(bwr_video_parse(file, sizeof file, &video));
+    word(24, BWR_VIDEO_FLAG_CYCLIC_BASE);
+    word(28, 1);
+    assert(bwr_video_parse(file, sizeof file, &video) && video.loop_start == 1);
+    word(28, 2);
+    assert(!bwr_video_parse(file, sizeof file, &video));
+    word(24, 2);
+    word(28, 1);
+    assert(!bwr_video_parse(file, sizeof file, &video));
+    word(24, 0);
+    assert(!bwr_video_parse(file, sizeof file, &video));
+    word(28, 0);
+    assert(bwr_video_parse(file, sizeof file, &video) && video.loop_start == 0);
     unsigned first, last;
     assert(bwr_video_delta_rows(&video, 0, UINT32_MAX, &first, &last) && first > last);
     assert(bwr_video_delta_rows(&video, 1, 0, &first, &last) && first == 12 && last == 19);

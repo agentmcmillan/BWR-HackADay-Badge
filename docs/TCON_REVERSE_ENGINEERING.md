@@ -14,15 +14,37 @@ do not currently have machine code to disassemble.
 
 ### Factory OTP
 
-The master COG returns one dummy byte and 88 fuse bytes through the documented
-B1 `0xB9` opener. The captured block and checksum are in
+The master COG returns one dummy byte followed by OTP data through the
+documented B1 `0xB9` opener. The first lab firmware requested 88 fuse bytes;
+that verified prefix and checksum are in
 [`data/tcon-otp-b1-2026-11-08.json`](../data/tcon-otp-b1-2026-11-08.json).
 Known fields include TCON, DCTL, DRFW, RAM and display windows, STV, two unnamed
 settings and four DC/DC ramp records.
 
+Pervasive Displays' exact legacy `eScreen_EPD_969_JS_0B` path reads 128 bytes.
+The published result is therefore a prefix, not a complete OTP dump. Capture
+and hash bytes 88--127 before interpreting reserved or feature fields.
+
 OTP is configuration, not executable code. It describes how the generic COG is
 initialized for this panel and how its booster ramps. The values are
 panel-specific and must not be assumed to fit another unit.
+
+The panel code is `969_JS_0B`: `J` is a normal-update black/white/red film in
+the vendor's
+[screen constants](https://docs.pervasivedisplays.com/knowledge/Software/Volume2/Chapter1/Section6.html#film).
+The newer `P` and `K` paths provide embedded fast update. Their old/new-plane
+ordering is a useful design reference, but their temperature-index and factory
+waveform rules must not be copied onto this `J/0B` panel by command number.
+For the matching legacy J-film path, `0x10` is the black plane and `0x11` the
+red plane. The repository's differential two-state use is experimentally
+verified custom behavior, not the vendor's factory fast-update mode.
+
+The vendor has suspended general partial-update support because unchanged
+pixels can still degrade and panel life can be reduced. The experiments here
+intentionally continue beyond that supported envelope, so every partial or
+rolling-band result must be described as experimental rather than a production
+lifetime claim. See the vendor's
+[update-method summary](https://docs.pervasivedisplays.com/knowledge/Technology/updating-the-display.html).
 
 ### Waveform data
 
@@ -184,10 +206,14 @@ than merely skipping part of the update.
 
 ### 6. Separate transfer overclocking from TCON work
 
-SPI trials at 20, 26.7 and 40 MHz can reduce RAM-write time but do not change
-the internal gate scan. Use deterministic full windows to expose transfer
-errors, inspect both halves and the center seam, and retain 4 MHz as the recovery
-profile. This is a host-interface characterization, not TCON decompilation.
+The matching archived large-panel material specifies 5 MHz writes. The newer
+Wide Large generation permits 20 MHz writes and 2.5 MHz reads, but uses a
+different controller and film. Our existing 20 MHz path is therefore a measured
+4x interface overclock for this panel, not a vendor-supported ceiling. Higher
+SPI clocks can only reduce RAM-write time; they do not change the internal gate
+scan. Use deterministic full windows to expose transfer errors, inspect both
+halves and the center seam, and retain 4 MHz as the recovery profile. This is
+host-interface characterization, not TCON decompilation.
 
 ### 7. Consider cascade injection only on sacrificial hardware
 

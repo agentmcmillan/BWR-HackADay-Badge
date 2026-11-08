@@ -37,6 +37,24 @@ repeat, repeat_report = adaptive_band_frames(
 )
 assert np.array_equal(compiled, repeat) and report == repeat_report
 
+cyclic, cyclic_report = adaptive_band_frames(
+    frames, band_rows=4, max_age=5, motion_weight=3, focus=(0, 0, 20, 14), cyclic_base=True
+)
+assert cyclic_report["cyclic_base"] and cyclic_report["loop_start"] == 1
+assert np.array_equal(cyclic[0], frames.mean(axis=0) >= 0.65)
+assert np.array_equal(cyclic[-1], cyclic[0])
+assert cyclic_report["closure_operations"] > 0
+previous = cyclic[0]
+for frame in cyclic[1:]:
+    changed = np.flatnonzero(np.any(frame != previous, axis=1))
+    assert len(changed) <= 4
+    if len(changed):
+        assert changed[-1] - changed[0] < 4
+    previous = frame
+wrap = np.flatnonzero(np.any(cyclic[1] != cyclic[-1], axis=1))
+assert len(wrap) <= 4
+assert all(frame.any() for frame in cyclic), "cyclic subject must never dissolve to white"
+
 try:
     adaptive_band_frames(frames.astype(np.uint8), band_rows=4)
     raise AssertionError("non-boolean input accepted")

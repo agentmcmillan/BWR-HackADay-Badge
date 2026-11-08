@@ -144,9 +144,10 @@ exec(
 parse = namespace["parse_clip"]
 verify = namespace["verify_builtin_clip"]
 data = outputs[0]
-native, count, crc, hold = parse(data)
+native, count, crc, hold, loop_start = parse(data)
 assert native and count == 2 and hold == 4000
-assert parse(outputs[2]) == (True, 2, crc, 0)
+assert loop_start == 0
+assert parse(outputs[2]) == (True, 2, crc, 0, 0)
 legacy_payload = b"\x01" * 4680
 legacy = (
     struct.pack(
@@ -154,7 +155,23 @@ legacy = (
     )
     + legacy_payload
 )
-assert parse(legacy) == (False, 1, zlib.crc32(legacy_payload), 0)
+assert parse(legacy) == (False, 1, zlib.crc32(legacy_payload), 0, 0)
+cyclic_payload = legacy_payload * 2
+cyclic = (
+    struct.pack(
+        "<8sHHIIIII",
+        b"BWRVID1\0",
+        240,
+        156,
+        2,
+        1500,
+        zlib.crc32(cyclic_payload),
+        1,
+        1,
+    )
+    + cyclic_payload
+)
+assert parse(cyclic) == (False, 2, zlib.crc32(cyclic_payload), 0, 1)
 for offset, value in [
     (0, ord("X")),
     (8, 1),

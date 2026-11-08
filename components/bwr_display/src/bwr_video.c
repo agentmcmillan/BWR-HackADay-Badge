@@ -24,15 +24,23 @@ bool bwr_video_parse(const uint8_t *bytes, size_t size, bwr_video *video)
     unsigned width = (unsigned)bytes[8] | (unsigned)bytes[9] << 8;
     unsigned height = (unsigned)bytes[10] | (unsigned)bytes[11] << 8;
     unsigned count = little32(bytes + 12), timing = little32(bytes + 16);
-    if ((!native && !classic) || !count || little32(bytes + 24) || little32(bytes + 28))
+    unsigned flags = little32(bytes + 24), loop_start = little32(bytes + 28);
+    if ((!native && !classic) || !count)
         return false;
     unsigned stride;
     if (native) {
+        if (flags || loop_start)
+            return false;
         if (width != 960 || height != 624 || count > 36 || (timing != 0 && timing < 1000) ||
             timing > 30000)
             return false;
         stride = 74880;
     } else {
+        if ((flags == 0 && loop_start != 0) ||
+            (flags == BWR_VIDEO_FLAG_CYCLIC_BASE &&
+             (loop_start < 1 || loop_start >= count)) ||
+            (flags != 0 && flags != BWR_VIDEO_FLAG_CYCLIC_BASE))
+            return false;
         if (width != 240 || height != 156 || count > BWR_VIDEO_MAX_FRAMES || timing < 500 ||
             timing > 30000)
             return false;
@@ -44,6 +52,7 @@ bool bwr_video_parse(const uint8_t *bytes, size_t size, bwr_video *video)
     *video = (bwr_video){.frames = bytes + BWR_VIDEO_HEADER,
                          .count = count,
                          .fps_milli = native ? 0 : timing,
+                         .loop_start = native ? 0 : loop_start,
                          .frame_bytes = stride,
                          .hold_ms = native ? timing : 0,
                          .native_ink = native};

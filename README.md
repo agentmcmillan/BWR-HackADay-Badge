@@ -12,9 +12,10 @@ pending clarification. See [provenance and licenses](docs/LICENSING.md).
 ## Included
 
 - A name-tag compositor with equal red HELLO/name bars, a configurable white
-  name, and a complete game canvas fitted into the white area.
+  name, high-contrast black dividers, and a complete game canvas fitted into
+  the white area with small strokes reinforced during scaling.
 - Spirograph and DVD-style animations, including same-curve reprojection on a
-  name-tag toggle and randomized DVD trajectories.
+  name-tag toggle, dense e-paper-aware strokes and randomized DVD trajectories.
 - Byte raster operations, cache-aware difference scanning and pipelined DMA window packing.
 - Refresh timing/statistics helpers and bounded USB benchmark control.
 - RAM video playback and local-file conversion, with finite live-panel benchmarks

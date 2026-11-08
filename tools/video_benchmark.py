@@ -34,6 +34,7 @@ def parse_clip(data):
         "<8sHHIIIII", data[:32]
     )
     native = magic == b"BWRINK1\0"
+    loop_start = 0
     if native:
         valid = (
             (width, height) == (960, 624)
@@ -41,22 +42,25 @@ def parse_clip(data):
             and (timing == 0 or 1000 <= timing <= 30000)
         )
         stride, hold_ms = 74880, timing
+        valid = valid and flags == 0 and reserved == 0
     else:
+        cyclic = flags == 1 and 1 <= reserved < count
+        legacy = flags == 0 and reserved == 0
+        loop_start = reserved if cyclic else 0
         valid = (
             (magic, width, height) == (b"BWRVID1\0", 240, 156)
             and 1 <= count <= 600
             and 500 <= timing <= 30000
+            and (legacy or cyclic)
         )
         stride, hold_ms = 4680, 0
     if (
         not valid
         or len(data) != 32 + count * stride
-        or flags
-        or reserved
         or zlib.crc32(data[32:]) != crc
     ):
         raise ValueError("Invalid BWR clip")
-    return native, count, crc, hold_ms
+    return native, count, crc, hold_ms, loop_start
 
 
 parser = argparse.ArgumentParser()
@@ -80,16 +84,18 @@ parser.add_argument(
 args = parser.parse_args()
 data = args.clip.read_bytes()
 try:
-    native, count, crc, hold_ms = parse_clip(data)
+    native, count, crc, hold_ms, loop_start = parse_clip(data)
 except ValueError as error:
     parser.error(str(error))
 
 if args.leave_ink and not native:
     parser.error("--leave-ink requires a native ink-memory clip")
 clocks = list(map(int, args.clocks.split(",")))
-frames = count if args.frames is None else args.frames
+default_frames = count - loop_start
+max_frames = 600 if loop_start else count
+frames = default_frames if args.frames is None else args.frames
 if (
-    not 1 <= frames <= count
+    not 1 <= frames <= max_frames
     or not clocks
     or any(clock not in (4, 5, 8, 12, 20) for clock in clocks)
 ):

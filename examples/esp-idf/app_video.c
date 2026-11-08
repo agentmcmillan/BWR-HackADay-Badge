@@ -56,7 +56,9 @@ bool video_request(unsigned mhz, unsigned frames)
     if (mhz != 4 && mhz != 5 && mhz != 8 && mhz != 12 && mhz != 20)
         return false;
     xSemaphoreTake(lock, portMAX_DELAY);
-    unsigned max_frames = clip.native_ink && clip.hold_ms == 0 ? BWR_VIDEO_MAX_FRAMES : clip.count;
+    unsigned max_frames = (clip.native_ink && clip.hold_ms == 0) || clip.loop_start
+                              ? BWR_VIDEO_MAX_FRAMES
+                              : clip.count;
     bool ok = active && !running && !pending && !stop && !leave && clip.frames && frames &&
               frames <= max_frames;
     if (ok) {
@@ -140,7 +142,9 @@ void app_video(void)
         if (button == BWR_BTN_MINUS)
             mhz = 20;
         if (button == BWR_BTN_A || button == BWR_BTN_PLUS || button == BWR_BTN_MINUS) {
-            unsigned frames = clip.native_ink && clip.hold_ms == 0 ? BWR_VIDEO_MAX_FRAMES : clip.count;
+            unsigned frames = (clip.native_ink && clip.hold_ms == 0) || clip.loop_start
+                                  ? BWR_VIDEO_MAX_FRAMES
+                                  : clip.count;
             if (video_request(mhz, frames))
                 local_loop = !clip.native_ink;
         }
@@ -183,8 +187,17 @@ void app_video(void)
         }
         if (!clip.native_ink) {
             ui_keys("4 MHz", "20 MHz", "Pause", "Home");
-            memset(fb, 0, sizeof fb);
-            ui_frame(1); // legacy blank warmup excluded
+            if (clip.loop_start) {
+                // Identical ui_frame calls may be cache hits. Force the port's
+                // physical black/white wipe once, then install the complete base.
+                ui_wipe();
+                memset(fb, 0, sizeof fb);
+                configASSERT(bwr_video_draw(&clip, 0, fb));
+                ui_frame(1);
+            } else {
+                memset(fb, 0, sizeof fb);
+                ui_frame(1); // legacy blank warmup excluded from timing
+            }
         } else
             ui_close();
         uint64_t begin = (uint64_t)esp_timer_get_time();
@@ -221,15 +234,42 @@ void app_video(void)
                 break;
             }
             uint64_t t0 = esp_timer_get_time();
-            bwr_video_draw(&clip, (clip.native_ink || continuous) ? frame % clip.count : frame, fb);
+            unsigned loop_count = clip.loop_start ? clip.count - clip.loop_start : clip.count;
+            unsigned clip_frame = clip.loop_start
+                                      ? clip.loop_start + frame % loop_count
+                                      : (clip.native_ink || continuous) ? frame % clip.count : frame;
+            unsigned previous_frame = clip.loop_start
+                                          ? frame == 0 ? 0
+                                                       : clip_frame == clip.loop_start
+                                                             ? clip.count - 1
+                                                             : clip_frame - 1
+                                          : frame == 0
+                                                ? UINT32_MAX
+                                                : (clip.native_ink || continuous)
+                                                      ? (frame - 1) % clip.count
+                                                      : frame - 1;
+            unsigned first_row = 0, last_row = clip.native_ink ? 623 : 155;
+            if (!clip.native_ink) {
+                configASSERT(bwr_video_delta_rows(&clip, clip_frame, previous_frame, &first_row,
+                                                  &last_row));
+                if (first_row <= last_row)
+                    configASSERT(bwr_video_draw_rows(&clip, clip_frame, first_row, last_row, fb));
+            } else
+                configASSERT(bwr_video_draw(&clip, clip_frame, fb));
             uint64_t drawn = esp_timer_get_time();
-            ui_frame(1);
+            if (clip.native_ink)
+                ui_frame(1);
+            else if (first_row <= last_row)
+                ui_frame_rows(SHAPE_TOP + (int)first_row * 4,
+                              SHAPE_TOP + ((int)last_row + 1) * 4 - 1);
+            else
+                ui_frame_rows(SHAPE_TOP, SHAPE_TOP);
             uint64_t end = esp_timer_get_time();
             refresh_sample sample;
             ui_refresh_lab_sample(&sample);
             refresh_result_add(&result, &sample, end - t0, drawn - t0);
             xSemaphoreTake(lock, portMAX_DELAY);
-            position = continuous ? frame % clip.count + 1 : frame + 1;
+            position = continuous ? frame % loop_count + 1 : frame + 1;
             xSemaphoreGive(lock);
             if (clip.native_ink && clip.hold_ms) {
                 ui_close(); // pigment remains; shut the booster down during the long hold

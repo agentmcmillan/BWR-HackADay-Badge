@@ -9,6 +9,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from light_grid import render_light_grid
 from poster import render_poster
+from temporal_ink import smooth_ink_release
 
 black = np.zeros((2, 156, 240), dtype=np.uint8)
 white = np.full_like(black, 255)
@@ -110,8 +111,8 @@ with tempfile.TemporaryDirectory() as directory:
     folder = Path(directory)
     source_file = folder / "source.local"
     source_file.touch()
-    for style in ["dither", "light-grid", "poster"]:
-        output = folder / (style + ".bwrv")
+    for style, release in [("dither", 1), ("light-grid", 1), ("poster", 1), ("poster", 3)]:
+        output = folder / f"{style}-{release}.bwrv"
         arguments = [
             "prepare_video.py",
             str(source_file),
@@ -122,6 +123,8 @@ with tempfile.TemporaryDirectory() as directory:
             "32x20",
             "--frames",
             "2",
+            "--ink-release-frames",
+            str(release),
         ]
 
         def decode(command, **kwargs):
@@ -158,11 +161,41 @@ with tempfile.TemporaryDirectory() as directory:
             ).tobytes()
             assert data[32:] == expected
         else:
-            expected = np.packbits(
-                render_poster(raw), axis=2, bitorder="big"
-            ).tobytes()
+            poster = render_poster(raw).astype(np.bool_)
+            if release > 1:
+                poster = smooth_ink_release(poster, release, cyclic=True)
+            expected = np.packbits(poster, axis=2, bitorder="big").tobytes()
             assert data[32:] == expected
-        assert json.loads(stdout.getvalue())["style"] == style
+        result = json.loads(stdout.getvalue())
+        assert result["style"] == style
+        assert bool(result["temporal_ink"]) == (release > 1)
+
+    cyclic_output = folder / "adaptive-poster-cyclic.bwrv"
+    cyclic_arguments = [
+        "prepare_video.py",
+        str(source_file),
+        str(cyclic_output),
+        "--style",
+        "adaptive-poster",
+        "--frames",
+        "2",
+        "--cyclic-base",
+        "--ink-release-frames",
+        "2",
+    ]
+    cyclic_stdout = io.StringIO()
+    with patch.object(sys, "argv", cyclic_arguments), patch(
+        "subprocess.run", decode
+    ), contextlib.redirect_stdout(cyclic_stdout):
+        runpy.run_path(str(root / "tools/prepare_video.py"), run_name="__main__")
+    cyclic_data = cyclic_output.read_bytes()
+    _, _, _, cyclic_count, _, cyclic_crc, cyclic_flags, loop_start = struct.unpack(
+        "<8sHHIIIII", cyclic_data[:32]
+    )
+    assert cyclic_count >= 2 and (cyclic_flags, loop_start) == (1, 1)
+    assert zlib.crc32(cyclic_data[32:]) == cyclic_crc
+    cyclic_result = json.loads(cyclic_stdout.getvalue())
+    assert cyclic_result["cyclic_base"] and cyclic_result["adaptive"]["loop_start"] == 1
 print(
-    "PASS converter style integration: BWRVID1 header/CRC and MSB-first dither, light-grid and poster payloads"
+    "PASS converter style integration: legacy and cyclic BWRVID1 headers/CRCs plus dither, light-grid, poster and temporal-ink payloads"
 )

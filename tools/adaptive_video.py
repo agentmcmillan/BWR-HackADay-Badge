@@ -11,12 +11,16 @@ def adaptive_band_frames(
     motion_weight=2.0,
     focus=None,
     max_frames=600,
+    cyclic_base=False,
+    base_occupancy=0.65,
 ):
     """Return whole-frame states whose consecutive differences fit one band.
 
     The firmware's existing partial driver discovers the narrow difference and
-    limits both RAM traffic and the physical gate scan. The final state is white,
-    making the last-to-first loop transition narrow as well.
+    limits both RAM traffic and the physical gate scan. By default the final
+    state is white. With cyclic_base, frame zero is a one-time complete base;
+    later operations remain narrow and return to that base without dissolving
+    the subject to white.
     """
     if (
         not isinstance(frames, np.ndarray)
@@ -27,6 +31,11 @@ def adaptive_band_frames(
         or not 1 <= max_age <= 1000
         or not 0 <= motion_weight <= 100
         or not 1 <= max_frames <= 600
+        or not isinstance(cyclic_base, (bool, np.bool_))
+        or (cyclic_base and len(frames) < 2)
+        or not isinstance(base_occupancy, (int, float, np.integer, np.floating))
+        or not np.isfinite(base_occupancy)
+        or not 0.05 <= base_occupancy <= 1.0
     ):
         raise ValueError("Invalid monochrome frames or adaptive-band settings")
     height, width = frames.shape[1:]
@@ -37,18 +46,27 @@ def adaptive_band_frames(
         if x < 0 or y < 0 or w < 1 or h < 1 or x + w > width or y + h > height:
             raise ValueError("Focus rectangle is outside the frame")
     bands = [(y, min(y + band_rows, height)) for y in range(0, height, band_rows)]
-    source_limit = max_frames - len(bands)
+    reserved = len(bands) + (1 if cyclic_base else 0)
+    source_limit = max_frames - reserved
     if source_limit < 1:
         raise ValueError("Band geometry leaves no room for source operations")
-    targets = frames[:source_limit]
-    state = np.zeros((height, width), dtype=np.bool_)
+    # Whole-clip occupancy isolates ink that is stable enough to draw once.
+    # Moving pixels remain in the newest target and are corrected in both their
+    # old and new locations by the same error-mask score.
+    base = (
+        np.mean(frames, axis=0) >= float(base_occupancy)
+        if cyclic_base
+        else np.zeros((height, width), dtype=np.bool_)
+    )
+    targets = frames[1 : 1 + source_limit] if cyclic_base else frames[:source_limit]
+    state = base.copy()
     previous_target = state.copy()
     age = np.zeros(len(bands), dtype=np.int32)
     weights = np.ones((height, width), dtype=np.float32)
     if focus is not None:
         x, y, w, h = map(int, focus)
         weights[y : y + h, x : x + w] = 4.0
-    output = []
+    output = [state.copy()] if cyclic_base else []
     source_operations = 0
     for target in targets:
         age += 1
@@ -73,28 +91,31 @@ def adaptive_band_frames(
             source_operations += 1
         previous_target = target
 
-    # Close the loop through a white state one band at a time. The app blanks
-    # before playback, so white -> frame 0 is also bounded by one band.
+    # Ordinary adaptive clips close through white. A cyclic-base clip instead
+    # returns each band to its complete base pose, keeping the subject present.
     closure_operations = 0
-    while state.any():
-        ink = np.array([state[y0:y1].sum() for y0, y1 in bands])
-        chosen = int(np.argmax(ink))
-        if not ink[chosen]:
+    while np.any(state != base):
+        error = np.array([np.count_nonzero(state[y0:y1] != base[y0:y1]) for y0, y1 in bands])
+        chosen = int(np.argmax(error))
+        if not error[chosen]:
             break
         y0, y1 = bands[chosen]
-        state[y0:y1] = False
+        state[y0:y1] = base[y0:y1]
         output.append(state.copy())
         closure_operations += 1
     if not output:
         output.append(state.copy())
+    if cyclic_base and len(output) == 1:
+        output.append(state.copy())
 
     compiled = np.stack(output)
-    previous = np.zeros_like(compiled[0])
+    previous = compiled[0] if cyclic_base else np.zeros_like(compiled[0])
     changed_rows = []
-    for frame in compiled:
+    for frame in compiled[1:] if cyclic_base else compiled:
         changed_rows.append(int(np.count_nonzero(np.any(frame != previous, axis=1))))
         previous = frame
-    wrap_rows = int(np.count_nonzero(np.any(compiled[0] != compiled[-1], axis=1)))
+    wrap_target = compiled[1] if cyclic_base else compiled[0]
+    wrap_rows = int(np.count_nonzero(np.any(wrap_target != compiled[-1], axis=1)))
     if max(changed_rows + [wrap_rows]) > band_rows or len(compiled) > max_frames:
         raise RuntimeError("Adaptive compiler violated its band/frame bound")
     return compiled, {
@@ -103,6 +124,11 @@ def adaptive_band_frames(
         "output_frames": int(len(compiled)),
         "source_operations": source_operations,
         "closure_operations": closure_operations,
+        "cyclic_base": bool(cyclic_base),
+        "loop_start": 1 if cyclic_base else 0,
+        "initializer_changed_rows": int(np.count_nonzero(np.any(compiled[0], axis=1))),
+        "base_occupancy": float(base_occupancy) if cyclic_base else None,
+        "base_ink_pixels": int(np.count_nonzero(base)),
         "band_rows": int(band_rows),
         "panel_band_rows": int(band_rows * 4),
         "mean_changed_rows": float(np.mean(changed_rows)),

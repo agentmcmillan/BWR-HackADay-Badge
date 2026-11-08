@@ -56,11 +56,14 @@ controlled optical chart measurements would be needed for those claims. This
 single-board sequence does not establish a reliable maximum operating clock.
 
 The vendor's [archived Large BW/BWR SPI page](https://docs.pervasivedisplays.com/knowledge/Archives/Hardware/Screens/large-epds/spi-protocol.html)
-lists a 5 MHz write limit. A [newer Wide Large SPI page](https://docs.pervasivedisplays.com/knowledge/Hardware/epd-usage/Screens/Wide_Large/spi-timing-format.html)
-lists 20 MHz for that family; it does not certify this older panel/board.
-Here 8, 12 and 20 MHz are experimental overclock profiles. The normal default
-remains 4 MHz. Faster transfers alone cannot eliminate the measured pull time;
-shorter waveforms would be a separate experiment requiring panel-specific evidence.
+lists a 5 MHz write limit for the matching legacy family. The current
+[Wide Large procedure](https://docs.pervasivedisplays.com/knowledge/Hardware/epd-usage/Screens/Wide_Large/update-procedure.html)
+states 20 MHz writes and 2.5 MHz reads, but describes a newer controller and
+film generation. It is not the electrical specification for `969_JS_0B`.
+Here 8, 12 and 20 MHz are experimental overclock profiles; 20 MHz is a measured
+4x interface overclock. The normal default remains 4 MHz. Faster transfers
+alone cannot eliminate measured pull time; shorter waveforms require separate
+panel-specific evidence.
 
 ## Reproduce
 
@@ -179,3 +182,28 @@ request when it exits. Its private built-in clip reloads after restart, so the
 owner can use **RickVideo → MENU −** for the 20 MHz experimental replay; A starts
 a default 4 MHz replay after reopening the app. Public integration instructions
 and local conversion commands are in [VIDEO.md](VIDEO.md).
+
+### Closure-free poster pass
+
+Firmware 0.8.55 replaced the loop's all-white closure with one complete base
+image followed by 94 narrow motion and return operations. A bounded 20 MHz loop
+completed in 6.437 seconds (**14.604 operations/second**) with 94 pulls, no
+fault, cancellation or session reopen. The preceding 0.8.54 build completed the
+same number of operations at 14.631 operations/second, so the persistent-base
+change reduced measured cadence by only 0.18%.
+
+An independent analysis of the owner's 25.352-second, approximately 120 fps
+phone recording perspective-corrected the panel and sampled it at about 30 fps.
+During steady playback from 1.5 to 10.5 seconds, subject-to-paper separation had
+a minimum of 156 and median of 160 grayscale levels; every sample exceeded the
+120-level acceptance threshold. No blank frame, full-width white closure or
+legible prior menu appeared in the loop, and at least three distinct arm/hand
+poses were visible. The one-time base appearance took about 0.267 seconds,
+0.017 seconds beyond the nominal 0.25-second faint limit. Gray edge trails,
+rectangular band boundaries and occasional pink residual blocks remain visible.
+
+The private recording is identified by SHA-256
+`36a543247f233de410e2b8c08d05b066a12d34a09146a04b50a37097f4785ed9` but is
+not distributed. These measurements establish recognizable, high-contrast
+looping motion under that recording geometry; they are not absolute
+colorimetry or a panel-lifetime claim.

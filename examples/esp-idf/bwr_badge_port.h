@@ -8,6 +8,9 @@ void box(int x, int y, int width, int height, bool ink);
 void outline(int x, int y, int width, int height, int thickness);
 void text(int x, int y, int scale, const char *label, bool ink);
 void ui_frame(int pulls);
+// Inclusive physical panel-row refresh used when the renderer proves all
+// changes are contained in one range.
+void ui_frame_rows(int y0, int y1);
 void ui_close(void);
 void ui_wipe(void);
 void ui_keys(const char *plus, const char *minus, const char *a, const char *b);

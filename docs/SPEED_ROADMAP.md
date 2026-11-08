@@ -95,6 +95,12 @@ and cannot expose much transfer improvement. Check both COG halves, the center
 seam and the bottom rows with a camera; a completed SPI transaction alone does
 not prove correct pixels.
 
+The matching archived large-panel documentation specifies 5 MHz writes. The
+existing 20 MHz profile is already a measured 4x interface overclock; 26.7,
+40 and 80 MHz are progressively more aggressive overclocks, not steps toward a
+vendor-rated target. The newer generation's 20 MHz rating does not apply to
+this `969_JS_0B` panel.
+
 Pass gate: zero visible corruption across repeated patterns and a measured
 end-to-end gain. Keep 4 MHz as the recovery/default profile and label every
 higher setting experimental.

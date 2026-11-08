@@ -23,7 +23,13 @@ void game_tag_compose_named(const uint8_t source[SHAPE_BYTES], uint8_t black[SHA
         for (int x = 0; x < SHAPE_W; x++)
             if (source[y * (SHAPE_W / 8) + x / 8] & (128u >> (x & 7))) {
                 int xx = GAME_VIEW_X + x * GAME_VIEW_H / (SHAPE_H - SHAPE_TOP);
-                black[yy * (SHAPE_W / 8) + xx / 8] |= (uint8_t)(128u >> (xx & 7));
+                // Preserve small bullets and strokes as a 2x2 ink cell. It
+                // remains inside the scaled playfield and adds no panel pulls.
+                for (int dy = 0; dy < 2 && yy + dy < TAG_PLAY_BOTTOM; dy++)
+                    for (int dx = 0; dx < 2 && xx + dx < GAME_VIEW_X + GAME_VIEW_W; dx++) {
+                        int xxx = xx + dx, yyy = yy + dy;
+                        black[yyy * (SHAPE_W / 8) + xxx / 8] |= (uint8_t)(128u >> (xxx & 7));
+                    }
             }
     }
     shapes_tag_render_named(black, red, NULL, name);

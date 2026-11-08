@@ -18,8 +18,12 @@ geometry. Spirograph reprojects the same curve and phase instead of reseeding.
 The optional legacy rectangular obstacle is off by default.
 
 `game_tag_compose_named` fits a complete logical game canvas into the white
-band with preserved proportions and forward-mapped strokes. The input is not
-modified. Native Spirograph/DVD views use the full white-band width and must
+band with preserved proportions. Each forward-mapped source pixel becomes a
+clipped 2 × 2 ink cell so small bullets and grid lines retain contrast after
+scaling; the input is not modified. The tag adds stationary four-row black
+dividers beside the red bars, and Spirograph uses a three-pixel-square trail
+brush and a larger pen marker. These are raster-density changes, not extra panel
+pulls. Native Spirograph/DVD views use the full white-band width and must
 already obey its vertical bounds. Names are limited to 12 printable ASCII
 characters; unsupported bytes become question marks. A missing name uses
 `YOUR NAME`.
@@ -27,6 +31,10 @@ characters; unsupported bytes become question marks. A missing name uses
 ## App and panel port
 
 Implement the declarations in `examples/esp-idf/bwr_badge_port.h` in the host.
+`ui_frame_rows(y0, y1)` must apply the same controller old/new-RAM repair rule
+as `ui_frame`, but may limit transfer and gate scan to the inclusive physical
+panel-row range. It must not silently widen into an asynchronous queued update;
+the Video adapter reuses the framebuffer immediately after it returns.
 Add the app adapter source files to the host's UI task. Do not draw from the USB
 command task. The 1-bit canvas is MSB-first; set bits mean black.
 

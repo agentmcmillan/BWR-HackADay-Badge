@@ -11,6 +11,7 @@ import zlib
 import numpy as np
 from clip_pack import packbits_envelope
 from adaptive_video import adaptive_band_frames
+from temporal_ink import ink_motion_metrics, smooth_ink_release
 
 
 def parse_grid(value):
@@ -55,6 +56,25 @@ parser.add_argument(
     help="Fixed grayscale cutoff for poster styles (default: 112)",
 )
 parser.add_argument(
+    "--ink-release-frames",
+    type=int,
+    default=1,
+    metavar="1..8",
+    help="Keep black pixels until this many paper frames agree (default: 1/off)",
+)
+parser.add_argument(
+    "--cyclic-base",
+    action="store_true",
+    help="Draw a whole-clip static base once, then loop only narrow latest-state bands",
+)
+parser.add_argument(
+    "--base-occupancy",
+    type=float,
+    default=0.65,
+    metavar="0.05..1.0",
+    help="Minimum whole-clip ink occupancy for the cyclic static base (default: 0.65)",
+)
+parser.add_argument(
     "--band-rows",
     type=int,
     default=8,
@@ -93,6 +113,12 @@ if (
     parser.error("Use band rows 1–156, max age 1–1000 and motion weight 0–100.")
 if not 1 <= args.poster_threshold <= 254:
     parser.error("Use a poster threshold from 1 to 254.")
+if not 1 <= args.ink_release_frames <= 8:
+    parser.error("Use an ink release from 1 to 8 frames.")
+if not 0.05 <= args.base_occupancy <= 1.0:
+    parser.error("Use a cyclic-base occupancy from 0.05 to 1.0.")
+if args.cyclic_base and not args.style.startswith("adaptive-"):
+    parser.error("--cyclic-base requires an adaptive style.")
 if args.output.exists():
     parser.error("Output already exists; choose a new filename.")
 focus = None
@@ -146,6 +172,20 @@ elif base_style == "poster":
     ink = render_poster(frames, threshold=args.poster_threshold).astype(np.bool_)
 else:
     ink = frames < threshold
+smoothing = None
+if args.ink_release_frames > 1:
+    before = ink_motion_metrics(ink, cyclic=True)
+    ink = smooth_ink_release(ink, release_frames=args.ink_release_frames, cyclic=True)
+    after = ink_motion_metrics(ink, cyclic=True)
+    smoothing = {
+        "release_frames": args.ink_release_frames,
+        "before": before,
+        "after": after,
+        "toggle_reduction_percent": float(
+            100 * (before["pixel_toggles"] - after["pixel_toggles"])
+            / max(1, before["pixel_toggles"])
+        ),
+    }
 adaptive = None
 if args.style.startswith("adaptive-"):
     ink, adaptive = adaptive_band_frames(
@@ -154,6 +194,8 @@ if args.style.startswith("adaptive-"):
         max_age=args.max_age,
         motion_weight=args.motion_weight,
         focus=focus,
+        cyclic_base=args.cyclic_base,
+        base_occupancy=args.base_occupancy,
     )
 payload = np.packbits(ink, axis=2, bitorder="big").tobytes()
 header = struct.pack(
@@ -164,8 +206,8 @@ header = struct.pack(
     len(ink),
     round(args.fps * 1000),
     zlib.crc32(payload),
-    0,
-    0,
+    1 if args.cyclic_base else 0,
+    adaptive["loop_start"] if args.cyclic_base else 0,
 )
 args.output.parent.mkdir(parents=True, exist_ok=True)
 output = header + payload
@@ -179,6 +221,9 @@ print(
             "style": args.style,
             "grid": args.grid if base_style == "light-grid" else None,
             "poster_threshold": args.poster_threshold if base_style == "poster" else None,
+            "temporal_ink": smoothing,
+            "cyclic_base": args.cyclic_base,
+            "base_occupancy": args.base_occupancy if args.cyclic_base else None,
             "sample_fps": args.fps,
             "bytes": len(output),
             "crc32": f"{zlib.crc32(payload):08x}",

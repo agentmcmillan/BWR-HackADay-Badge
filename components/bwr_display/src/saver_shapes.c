@@ -23,9 +23,11 @@ static void line(uint8_t *out, int x, int y, int xx, int yy)
     int dx = abs(xx - x), sx = x < xx ? 1 : -1, dy = -abs(yy - y), sy = y < yy ? 1 : -1,
         error = dx + dy;
     for (;;) {
-        pixel(out, x, y);
-        pixel(out, x + 1, y);
-        pixel(out, x, y + 1);
+        // A compact square brush survives both a light partial dose and the
+        // game-tag compositor's down-scaling without requiring another pull.
+        for (int by = -1; by <= 1; by++)
+            for (int bx = -1; bx <= 1; bx++)
+                pixel(out, x + bx, y + by);
         if (x == xx && y == yy)
             break;
         int twice = 2 * error;
@@ -233,9 +235,9 @@ void shapes_render(const saver_shapes *s, uint8_t out[SHAPE_BYTES])
     memset(out, 0, SHAPE_BYTES);
     if (s->kind == SHAPE_SPIROGRAPH) {
         memcpy(out, s->trail, SHAPE_BYTES);
-        for (int y = -3; y <= 3; y++)
-            for (int x = -3; x <= 3; x++)
-                if (x * x + y * y <= 9)
+        for (int y = -5; y <= 5; y++)
+            for (int x = -5; x <= 5; x++)
+                if (x * x + y * y <= 25)
                     pixel(out, s->x + x, s->y + y);
         return;
     }
@@ -307,6 +309,17 @@ void shapes_tag_render_named(uint8_t black[SHAPE_BYTES], uint8_t red[SHAPE_BYTES
         scale = 10;
     white_text(red, (SHAPE_W - (int)length * 8 * scale) / 2,
                SHAPE_H - TAG_BAR_H + (TAG_BAR_H - 8 * scale) / 2, scale, label);
+    // Dark dividers frame the white playfield even when red pigment is muted.
+    for (int y = SHAPE_TOP + TAG_BAR_H; y < SHAPE_TOP + TAG_BAR_H + 4; y++) {
+        memset(black + y * (SHAPE_W / 8), 0xff, SHAPE_W / 8);
+        if (mask)
+            memset(mask + y * (SHAPE_W / 8), 0xff, SHAPE_W / 8);
+    }
+    for (int y = SHAPE_H - TAG_BAR_H - 4; y < SHAPE_H - TAG_BAR_H; y++) {
+        memset(black + y * (SHAPE_W / 8), 0xff, SHAPE_W / 8);
+        if (mask)
+            memset(mask + y * (SHAPE_W / 8), 0xff, SHAPE_W / 8);
+    }
 }
 
 void shapes_tag_render(uint8_t black[SHAPE_BYTES], uint8_t red[SHAPE_BYTES], uint8_t *mask)
