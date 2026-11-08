@@ -12,7 +12,7 @@ static SemaphoreHandle_t lock;
 static uint8_t *clip_bytes;
 static bwr_video clip;
 static uint32_t clip_crc32, clip_file_crc32;
-static bool active, pending, running, stop, leave;
+static bool active, pending, running, stop, leave, cancelled;
 static unsigned requested_mhz = 4, requested_frames, sequence, position;
 static uint64_t elapsed_us;
 static refresh_result last;
@@ -37,6 +37,7 @@ bool video_accept(uint8_t *bytes, size_t size)
         clip_crc32 = (uint32_t)bytes[20] | (uint32_t)bytes[21] << 8 | (uint32_t)bytes[22] << 16 |
                      (uint32_t)bytes[23] << 24;
         position = 0;
+        cancelled = false;
         last = (refresh_result){0};
         elapsed_us = 0;
     }
@@ -78,16 +79,17 @@ void video_status(char *out, size_t capacity)
     xSemaphoreTake(lock, portMAX_DELAY);
     snprintf(out, capacity,
              "{\"active\":%s,\"pending\":%s,\"running\":%s,\"loaded\":%u,"
-             "\"clip_crc32\":%lu,\"clip_file_crc32\":%lu,\"native_ink\":%s,\"hold_ms\":%u,"
+             "\"cancelled\":%s,\"clip_crc32\":%lu,\"clip_file_crc32\":%lu,\"native_ink\":%s,\"hold_"
+             "ms\":%u,"
              "\"frame\":%u,\"sequence\":%u,\"mhz\":%u,\"calls\":%u,\"pulls\":%u,"
              "\"elapsed_us\":%llu,\"render_us\":%llu,\"write_us\":%llu,\"pull_"
              "us\":%llu,\"reopens\":%u}",
              active ? "true" : "false", pending ? "true" : "false", running ? "true" : "false",
-             clip.count, (unsigned long)clip_crc32, (unsigned long)clip_file_crc32,
-             clip.native_ink ? "true" : "false", clip.hold_ms, position, sequence, requested_mhz,
-             last.calls, last.pulls, (unsigned long long)elapsed_us,
-             (unsigned long long)last.render_us, (unsigned long long)last.write_us,
-             (unsigned long long)last.pull_us, last.reopens);
+             clip.count, cancelled ? "true" : "false", (unsigned long)clip_crc32,
+             (unsigned long)clip_file_crc32, clip.native_ink ? "true" : "false", clip.hold_ms,
+             position, sequence, requested_mhz, last.calls, last.pulls,
+             (unsigned long long)elapsed_us, (unsigned long long)last.render_us,
+             (unsigned long long)last.write_us, (unsigned long long)last.pull_us, last.reopens);
     xSemaphoreGive(lock);
 }
 static void title(const char *message)
@@ -149,6 +151,7 @@ void app_video(void)
             running = true;
             stop = false;
             position = 0;
+            cancelled = false;
         }
         xSemaphoreGive(lock);
         if (exit_now)
@@ -156,6 +159,7 @@ void app_video(void)
         if (!start)
             continue;
         refresh_result result = {0};
+        bool run_cancelled = false;
         if (!ui_refresh_lab_begin(mhz)) {
             ui_refresh_lab_end();
             xSemaphoreTake(lock, portMAX_DELAY);
@@ -167,7 +171,8 @@ void app_video(void)
             xSemaphoreGive(lock);
             if (exit_now)
                 break;
-            title("Could not select the requested clock. No video run started.");
+            if (!clip.native_ink)
+                title("Could not select the requested clock. No video run started.");
             continue;
         }
         if (!clip.native_ink) {
@@ -181,7 +186,14 @@ void app_video(void)
             bool halted = stop || leave;
             xSemaphoreGive(lock);
             int key = btn_get(0);
+            if (clip.native_ink && key == BWR_BTN_PLUS) {
+                fresh_sheet = true;
+                run_cancelled = true;
+                video_stop(false);
+                break;
+            }
             if (key == BWR_BTN_A || key == BWR_BTN_B || halted) {
+                run_cancelled = true;
                 if (key == BWR_BTN_B)
                     video_stop(true);
                 break;
@@ -208,18 +220,22 @@ void app_video(void)
                     int key = btn_get(wait_ms > 100 ? 100 : wait_ms);
                     if (key == BWR_BTN_PLUS) {
                         fresh_sheet = true;
+                        run_cancelled = true;
                         video_stop(false);
                         break;
                     }
                     if (key == BWR_BTN_A || key == BWR_BTN_B) {
+                        run_cancelled = true;
                         video_stop(key == BWR_BTN_B);
                         break;
                     }
                     xSemaphoreTake(lock, portMAX_DELAY);
                     bool halted = stop || leave;
                     xSemaphoreGive(lock);
-                    if (halted)
+                    if (halted) {
+                        run_cancelled = true;
                         break;
+                    }
                 }
             }
         }
@@ -228,6 +244,7 @@ void app_video(void)
         ui_refresh_lab_end();
         xSemaphoreTake(lock, portMAX_DELAY);
         last = result;
+        cancelled = run_cancelled;
         elapsed_us = elapsed;
         sequence++;
         running = false;

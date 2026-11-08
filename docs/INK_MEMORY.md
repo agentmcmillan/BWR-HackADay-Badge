@@ -47,3 +47,10 @@ Home requests at bounded intervals without holding a mutex, and long holds occur
 with the panel session closed. A successful `--leave-ink` run closes serial while
 leaving the app idle on the last pose; error paths still request safe exit unless
 the controller has reported a fail-stop.
+
+The controller records native runs as deliberately paced poses, including the
+stable hold time. Status exposes `cancelled` for the last result, so interrupting
+the final pose's hold is not reported as a completed run just because every pose
+has already been drawn. Built-in identity covers the whole file CRC as well as
+the payload CRC, including native hold metadata. A camera that exits during a
+trial makes that capture an error rather than valid benchmark evidence.

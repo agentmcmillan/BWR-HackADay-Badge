@@ -49,3 +49,12 @@ converter integration with the existing file header, CRC and bit order. The
 review corrected a zero-radius pinhole at aligned cell centers and rejects
 non-integer grids or empty/oversized frame sequences. No artist imagery or music
 video is included in that change.
+
+The native ink-memory extension received a subsequent review of its exact-size
+960 × 624 codec, 36-pose/hold limits, status-bar preservation, session shutdown,
+last-image lifecycle and error paths. Follow-up fixes reject infinite source
+start times, retain pure black/white stipple endpoints, and distinguish a
+cancelled final hold from a completed paced run. Tests cover native/legacy host
+parsing, whole-file timing identity, full-resolution pixel detail, converter
+PackBits/CRC compatibility, camera-loss cleanup and successful leave-ink behavior.
+No hardware validation is implied by those software checks.

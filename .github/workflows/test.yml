@@ -20,4 +20,5 @@ jobs:
       - run: node tests/test_serial_upload.js
       - run: python -m pip install "numpy>=1.24,<3" "opencv-python-headless>=4.8,<5"
       - run: python tests/test_light_grid.py
+      - run: python tests/test_ink_memory.py
       - run: python -m py_compile tools/*.py tests/*.py

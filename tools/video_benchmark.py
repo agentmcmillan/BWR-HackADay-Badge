@@ -26,6 +26,39 @@ def verify_builtin_clip(status, frame_count, payload_crc, file_crc=None):
         )
 
 
+def parse_clip(data):
+    """Validate a complete bounded legacy or native clip before opening serial."""
+    if len(data) < 32:
+        raise ValueError("Truncated clip")
+    magic, width, height, count, timing, crc, flags, reserved = struct.unpack(
+        "<8sHHIIIII", data[:32]
+    )
+    native = magic == b"BWRINK1\0"
+    if native:
+        valid = (
+            (width, height) == (960, 624)
+            and 1 <= count <= 36
+            and 1000 <= timing <= 30000
+        )
+        stride, hold_ms = 74880, timing
+    else:
+        valid = (
+            (magic, width, height) == (b"BWRVID1\0", 240, 156)
+            and 1 <= count <= 600
+            and 500 <= timing <= 30000
+        )
+        stride, hold_ms = 4680, 0
+    if (
+        not valid
+        or len(data) != 32 + count * stride
+        or flags
+        or reserved
+        or zlib.crc32(data[32:]) != crc
+    ):
+        raise ValueError("Invalid BWR clip")
+    return native, count, crc, hold_ms
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("port")
 parser.add_argument("clip", type=Path)
@@ -46,30 +79,11 @@ parser.add_argument(
 )
 args = parser.parse_args()
 data = args.clip.read_bytes()
-if len(data) < 32:
-    parser.error("Truncated clip")
-magic, w, h, count, fps, crc, flags, reserved = struct.unpack("<8sHHIIIII", data[:32])
-native = magic == b"BWRINK1\0"
-if native:
-    valid = (w, h) == (960, 624) and 1 <= count <= 36 and 1000 <= fps <= 30000
-    stride = 74880
-    hold_ms = fps
-else:
-    valid = (
-        (magic, w, h) == (b"BWRVID1\0", 240, 156)
-        and 1 <= count <= 600
-        and 500 <= fps <= 30000
-    )
-    stride = 4680
-    hold_ms = 0
-if (
-    not valid
-    or len(data) != 32 + count * stride
-    or flags
-    or reserved
-    or zlib.crc32(data[32:]) != crc
-):
-    parser.error("Invalid BWR clip")
+try:
+    native, count, crc, hold_ms = parse_clip(data)
+except ValueError as error:
+    parser.error(str(error))
+
 if args.leave_ink and not native:
     parser.error("--leave-ink requires a native ink-memory clip")
 clocks = list(map(int, args.clocks.split(",")))
@@ -181,6 +195,8 @@ try:
             next_progress = 30
             while True:
                 status = rpc.call("video_status")
+                if camera.poll() is not None:
+                    raise RuntimeError("Camera exited before the run completed")
                 if status["running"] and status["frame"] >= next_progress:
                     print(
                         f"PROGRESS {clock} MHz: {status['frame']}/{frames} frames",
@@ -188,7 +204,7 @@ try:
                     )
                     next_progress = status["frame"] + 30
                 if status["sequence"] > before and not status["running"]:
-                    if status["calls"] != frames:
+                    if status.get("cancelled") or status["calls"] != frames:
                         raise RuntimeError("Incomplete video run")
                     result.update(status="completed", result=status)
                     break
@@ -198,6 +214,11 @@ try:
                     raise TimeoutError("Video run stalled")
                 time.sleep(0.5)
             time.sleep(2)
+            if camera.poll() is not None:
+                raise RuntimeError("Camera exited before the capture finished")
+        except BaseException as error:
+            result.update(status="error", error=str(error))
+            raise
         finally:
             if camera.poll() is None:
                 camera.send_signal(signal.SIGINT)

@@ -57,6 +57,7 @@ static int btn_get(int timeout){
   if(hold_reads==3&&scenario==4)return BWR_BTN_B;
   if(hold_reads==3&&scenario==5)video_stop(true);
   if(hold_reads==3&&scenario==6)return BWR_BTN_PLUS;
+  if(hold_reads==43&&scenario==7)video_stop(false);
   return -1;
  }
  if(timeout==100){idle_calls++;return idle_calls==1?BWR_BTN_A:BWR_BTN_B;}
@@ -69,7 +70,7 @@ checks = r"""
 static void put(uint8_t *p,uint32_t n){for(unsigned i=0;i<4;i++)p[i]=(uint8_t)(n>>(8*i));}
 int main(void){
  video_init();assert(!video_request(20,1)&&!video_active());
- for(scenario=0;scenario<7;scenario++){
+ for(scenario=0;scenario<8;scenario++){
   bool native=scenario>=3;unsigned count=native?2:4,stride=native?74880:4680;
   size_t n=32+count*stride;uint8_t *data=calloc(1,n);assert(data);
   memcpy(data,native?"BWRINK1":"BWRVID1",8);
@@ -82,8 +83,9 @@ int main(void){
   idle_calls=draws=ends=hold_reads=wipes=text_calls=0;now=0;shortcut=true;closed=false;
   app_video();assert(!video_active()&&!locked&&shortcut&&closed&&ends>=1);
   char status[1024];video_status(status,sizeof status);puts(status);
-  assert(strstr(status,scenario==0?"\"calls\":4":scenario==1||scenario==3?"\"calls\":2":scenario==2?"\"calls\":0":"\"calls\":1"));
-  if(native){assert(text_calls==0);if(scenario==3){assert(now>=9200000&&draws==2&&hold_reads>=80);}else assert(hold_reads==3);}
+  assert(strstr(status,scenario==0?"\"calls\":4":scenario==1||scenario==3||scenario==7?"\"calls\":2":scenario==2?"\"calls\":0":"\"calls\":1"));
+  if(native){assert(text_calls==0);if(scenario==3){assert(now>=9200000&&draws==2&&hold_reads>=80);}else if(scenario==7){assert(hold_reads==43&&draws==2&&now<9200000);}else assert(hold_reads==3);}
+  assert(strstr(status,scenario==1||scenario>=4?"\"cancelled\":true":"\"cancelled\":false"));
   if(scenario==6)assert(wipes==1);
  }
  video_stop(true);video_stop(false);assert(leave);

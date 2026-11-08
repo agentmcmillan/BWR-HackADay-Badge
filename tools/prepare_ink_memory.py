@@ -4,6 +4,7 @@
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import struct
 import subprocess
@@ -36,6 +37,7 @@ if (
     not args.input.is_file()
     or args.output.exists()
     or not 1 <= args.poses <= 36
+    or not math.isfinite(args.start)
     or not 0 <= args.start
     or not 0.1 <= args.source_step <= 30
     or not 1 <= args.hold <= 30
@@ -81,7 +83,7 @@ noise = rng.random((624, 960)).astype(np.float32)
 noise -= cv2.GaussianBlur(noise, (0, 0), 1)
 rank = np.empty(noise.size, dtype=np.float32)
 rank[np.argsort(noise, axis=None)] = np.arange(noise.size, dtype=np.float32)
-threshold = rank.reshape(624, 960) * (255 / noise.size)
+threshold = (rank.reshape(624, 960) + 0.5) * (255 / noise.size)
 packed = []
 for frame in frames:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
@@ -90,7 +92,11 @@ for frame in frames:
         image = cv2.resize(rgb, (192, 192)).astype(np.float32) / 127.5 - 1
         net.setInput(cv2.dnn.blobFromImage(image))
         prediction = net.forward()
-        if prediction.ndim != 4 or prediction.shape[:2] != (1, 2):
+        if (
+            prediction.ndim != 4
+            or prediction.shape[:2] != (1, 2)
+            or not np.isfinite(prediction).all()
+        ):
             raise RuntimeError("Unexpected segmentation model output")
         alpha = cv2.resize(prediction[0, 1], (960, 624), interpolation=cv2.INTER_LINEAR)
         alpha = cv2.GaussianBlur(np.clip(alpha, 0, 1), (0, 0), 2)
