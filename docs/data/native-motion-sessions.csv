@@ -1,0 +1,9 @@
+firmware,spi_mhz,motion_rows,frames,elapsed_s,render_s,write_s,pull_s,session_opens,updates_per_s,notes
+0.8.38,20,624,9,7.846,not_recorded,0.178,5.232,1,1.147,full-app-area nine-pose mean
+0.8.39,20,624,9,7.005,not_recorded,not_recorded,4.390,1,1.285,row-bounded pull
+0.8.39,20,384,9,5.365,not_recorded,not_recorded,2.826,1,1.677,warm trial
+0.8.39,20,256,9,4.521,not_recorded,not_recorded,2.018,1,1.990,warm trial
+0.8.39,20,128,9,3.639,not_recorded,not_recorded,1.195,1,2.473,warm trial
+0.8.40,20,128,120,24.299637,0.855512,0.405340,16.379418,2,4.938,60-pull reopen policy
+0.8.41,20,128,120,21.866315,0.863814,0.416320,16.354233,1,5.488,600-pull session
+0.8.42,20,128,120,21.860780,0.882662,0.385913,16.362329,1,5.489,19 driven slots plus final GND

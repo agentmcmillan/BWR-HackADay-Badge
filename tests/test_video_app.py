@@ -61,7 +61,7 @@ static int btn_get(int timeout){
   if(hold_reads==43&&scenario==7)video_stop(false);
   return -1;
  }
- if(timeout==100){idle_calls++;if(scenario==8&&idle_calls==1){assert(video_request(20,2));return -1;}return idle_calls==1?BWR_BTN_A:BWR_BTN_B;}
+ if(timeout==100){idle_calls++;if(scenario==3&&idle_calls==1)assert(!video_request(20,3));if(scenario==8&&idle_calls==1){assert(video_request(20,2));return -1;}return idle_calls==1?BWR_BTN_A:BWR_BTN_B;}
  assert(timeout==0);
  if(scenario==1&&draws>=4)return BWR_BTN_B;
  if(scenario==9&&draws>=1)return BWR_BTN_B;

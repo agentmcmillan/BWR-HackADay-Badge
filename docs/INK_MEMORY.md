@@ -7,10 +7,11 @@ partial waveform erases the previous pose imperfectly, leaving a physical
 brown/pink afterimage. No digital history is baked into the clip. The panel's
 residue becomes part of the drawing.
 
-A native clip contains at most 36 poses. Use `--hold 0` for continuous playback:
+A native clip contains at most 36 distinct poses. Use `--hold 0` for continuous playback:
 there is no artificial hold or shutdown between poses. The existing driver
-still enforces its session limit, and the app closes the session after the final
-pose or cancellation. Actual cadence depends on the panel and SPI profile.
+can loop those poses for a bounded 600-frame performance run, and the app closes
+the session after the final frame or cancellation. Actual cadence depends on the
+panel and SPI profile.
 Zero-hold clips require the updated native decoder and app (private integration
 0.8.38); older held-pose firmware rejects them.
 
@@ -104,7 +105,31 @@ or controller fault. These are short serial-timed trials, not optical validation
 or a new electrical rating; 20 MHz remains experimental. See the
 [sanitized trial data](data/native-gesture-clocks.csv). The app restores the driver
 to 4 MHz after completion, while A reuses the selected playback profile until
-leaving the app. The built-in default remains 4 MHz.
+leaving the app. Sustained zero-hold native playback now initially selects the
+experimental 20 MHz profile; classic low-resolution video remains 4 MHz by default.
+
+### Row-window and sustained-session follow-up
+
+Firmware 0.8.39 restricted the controller's physical pull to the union of rows
+that actually changed on the two COGs. The same nine-pose sequence at 20 MHz
+fell from a 7.846-second mean to 7.005 seconds. Constraining motion to 128 rows
+reduced a nine-pose trial to 3.639 seconds after warmup. These improvements came
+from shorter gate scans, not from further SPI overclocking.
+
+Firmware 0.8.40 added a bounded 600-frame loop for a nine-pose, 128-row native
+clip. A 120-frame run with the conservative 60-pull reopen policy took 24.300
+seconds. Firmware 0.8.41 kept the high-voltage session open for all 120 pulls and
+completed in 21.866 seconds; firmware 0.8.42 repeated it in 21.861 seconds, or
+**5.49 physical updates per second**. The latter used maximum transition drive
+in 19 of 20 fixed waveform slots and retained a final neutral slot. It produced
+the same throughput because the controller still executes all 20 slots.
+
+Photos of the sustained run showed rectangular residual blocks from earlier
+poses. The stable header and geometry did not indicate SPI tearing; the pattern
+is consistent with differential under-drive and pigment ghosting. The stronger
+0.8.42 waveform is intended to reduce that residue, but the improvement has not
+yet been quantified optically. Sanitized timings are in
+[`native-motion-sessions.csv`](data/native-motion-sessions.csv).
 
 The firmware already uses ESP-IDF FreeRTOS, DMA transfers and a 240 MHz CPU.
 These measurements point to the panel waveform/BUSY duration as the dominant

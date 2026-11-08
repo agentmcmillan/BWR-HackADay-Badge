@@ -19,6 +19,12 @@ at a frame boundary. Exiting restores the default 4 MHz request and shortcut
 handling. The RAM clip remains available from Home until restart or replacement;
 saved photos and flash partitions are not changed.
 
+Zero-hold native clips use the experimental 20 MHz profile by default and loop
+their distinct poses for a bounded 600-frame performance run. Held native clips
+play their stored pose count once. The renderer uses `frame % clip.count` only
+for native looping; classic BWRVID1 requests remain bounded by their stored frame
+count. Cancellation is checked at every frame boundary.
+
 ## Prepare and run
 
 Install NumPy, pyserial and FFmpeg. Use a local video you are authorized to use.

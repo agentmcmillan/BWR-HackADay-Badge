@@ -56,8 +56,9 @@ bool video_request(unsigned mhz, unsigned frames)
     if (mhz != 4 && mhz != 5 && mhz != 8 && mhz != 12 && mhz != 20)
         return false;
     xSemaphoreTake(lock, portMAX_DELAY);
+    unsigned max_frames = clip.native_ink && clip.hold_ms == 0 ? BWR_VIDEO_MAX_FRAMES : clip.count;
     bool ok = active && !running && !pending && !stop && !leave && clip.frames && frames &&
-              frames <= clip.count;
+              frames <= max_frames;
     if (ok) {
         requested_mhz = mhz;
         requested_frames = frames;
@@ -119,7 +120,7 @@ void app_video(void)
     } else
         title(clip.frames ? "Clip loaded. A replays at 4 MHz."
                           : "Return Home, then upload a .bwrv clip over USB.");
-    unsigned mhz = 4;
+    unsigned mhz = clip.native_ink ? 20 : 4;
     bool fresh_sheet = false;
     for (;;) {
         int button = btn_get(100);
@@ -138,8 +139,10 @@ void app_video(void)
             mhz = 4;
         if (button == BWR_BTN_MINUS)
             mhz = 20;
-        if (button == BWR_BTN_A || button == BWR_BTN_PLUS || button == BWR_BTN_MINUS)
-            video_request(mhz, clip.count);
+        if (button == BWR_BTN_A || button == BWR_BTN_PLUS || button == BWR_BTN_MINUS) {
+            unsigned frames = clip.native_ink && clip.hold_ms == 0 ? BWR_VIDEO_MAX_FRAMES : clip.count;
+            video_request(mhz, frames);
+        }
         xSemaphoreTake(lock, portMAX_DELAY);
         bool exit_now = leave, start = pending;
         unsigned target = requested_frames;
@@ -199,7 +202,7 @@ void app_video(void)
                 break;
             }
             uint64_t t0 = esp_timer_get_time();
-            bwr_video_draw(&clip, frame, fb);
+            bwr_video_draw(&clip, clip.native_ink ? frame % clip.count : frame, fb);
             uint64_t drawn = esp_timer_get_time();
             ui_frame(1);
             uint64_t end = esp_timer_get_time();

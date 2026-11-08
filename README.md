@@ -68,6 +68,13 @@ change. The full 323-frame video test completed in 214.0 seconds at 20 MHz versu
 251.5 seconds at 4 MHz, with the expected 319 physical pulls in both runs. Heavy ghosting remains. These are experimental monochrome updates; they
 do not replace the panel’s full-quality color waveform or certify higher clocks.
 
+The later native-ink path also limits the controller's gate scan to rows that
+actually change. A 128-row motion band completed 120 physical pulls in 21.861
+seconds (**5.49 updates/sec**) at 20 MHz with one continuous session. The
+maximum-drive waveform uses 19 fixed slots plus a final neutral slot. Photos
+still show strong pigment afterimages; this is a speed/ghosting experiment, not
+LCD-like video or a vendor-qualified operating mode.
+
 On macOS, the controller can run a bounded test sequence and record video with
 no audio:
 

@@ -18,6 +18,15 @@ change the pigment waveform, power rails or controller session limits.
    uses polling start/end for overlapped bulk data, and drains the outstanding
    transfer before returning to ordinary polling commands.
 
+The hardware integration now also programs the pull window to the union of rows
+that visibly change on the two COGs. Both COGs receive the same vertical range
+so their gate timing remains aligned. The older path uploaded a small RAM window
+but restored the pull window to all 672 rows before triggering; limiting the
+actual gate scan is what produced the large gain. Horizontal RAM windows still
+reduce transfer bytes, but narrowing X did not shorten this panel's pull. The
+preceding changed box remains part of the controller-RAM repair; only the current
+visible-change union selects the physical pull rows.
+
 The stream API does not own a bus, change a clock or issue panel commands. The
 host must serialize panel operations and provide distinct buffers with valid DMA
 alignment/lifetimes. The helper rejects buffers that overlap each other or the
@@ -42,3 +51,23 @@ Only the hardware runs in [BENCHMARKS.md](BENCHMARKS.md) establish measured spee
 The archived panel family's 5 MHz SPI guidance still applies. Higher clock
 profiles remain experiments. A successful video or checkerboard run does not
 certify signal margins, long-term pigment balance or all operating temperatures.
+
+## Related raw-panel implementations
+
+[FastEPD at commit 60d4945](https://github.com/bitbank2/FastEPD/tree/60d49456654c20485487d927f368387b69012ac6)
+reinforces several useful principles: keep panel power on across animation,
+reduce waveform passes deliberately, write directly into the framebuffer, use
+two DMA buffers, and convert current/previous pixels into differential drive
+codes with lookup tables or ESP32-S3 SIMD. Its raw parallel-panel driver owns
+the source and gate clocks, however, while this badge talks to an integrated
+iTC97-class controller over SPI. FastEPD's bit-bang option is explicitly a
+clear-only workaround for a parallel-peripheral clock glitch; it repeats a
+solid pattern and cannot transmit image rows. It is therefore not a faster
+replacement for this driver's 20 MHz SPI DMA path.
+
+The portable lesson is session and charge-state management, not copying raw
+timings. Firmware 0.8.42 keeps one differential session open for as many as 600
+pulls and uses 19 of the controller's fixed 20 waveform slots for transition
+drive, leaving the final slot at GND. The manufacturer booster-current safety
+setting remains enabled. This is an aggressive longevity/ghosting experiment,
+not a vendor-qualified mode.
