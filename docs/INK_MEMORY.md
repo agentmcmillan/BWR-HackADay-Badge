@@ -54,3 +54,13 @@ the final pose's hold is not reported as a completed run just because every pose
 has already been drawn. Built-in identity covers the whole file CRC as well as
 the payload CRC, including native hold metadata. A camera that exits during a
 trial makes that capture an error rather than valid benchmark evidence.
+
+## Live check
+
+Firmware0.8.37 completed a four-pose native run at4MHz with four physical pulls,
+four session reopens and four-second holds after shutdown. Total elapsed time
+was29.486seconds. The camera showed detailed new poses alongside faint residual
+traces, and the last image remained after serial disconnected. No controller
+fault was reported. This is a paced artwork check, not a refresh-speed claim.
+Raw recordings, the model and user-supplied Rick video remain local. The complete
+native extension received independent review and regression tests before push.

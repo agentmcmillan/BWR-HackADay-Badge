@@ -98,6 +98,7 @@ included in this repository.
 
 [Refresh pipeline](docs/REFRESH_PIPELINE.md) explains the data path and buffer ownership.
 [Video mode](docs/VIDEO.md) covers preparation, USB loading and optional private built-in clips.
+[Ghost Dance / ink memory](docs/INK_MEMORY.md) uses detailed slow poses and the panel’s residual ink.
 
 Format project C with `.clang-format` and Python with Black. Keep vendor files
 and their notices unchanged. See [contributing](CONTRIBUTING.md).
