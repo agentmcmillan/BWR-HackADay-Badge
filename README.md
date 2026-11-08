@@ -15,7 +15,9 @@ pending clarification. See [provenance and licenses](docs/LICENSING.md).
   name, and a complete game canvas fitted into the white area.
 - Spirograph and DVD-style animations, including same-curve reprojection on a
   name-tag toggle and randomized DVD trajectories.
+- Byte raster operations, cache-aware difference scanning and pipelined DMA window packing.
 - Refresh timing/statistics helpers and bounded USB benchmark control.
+- RAM video playback and local-file conversion, with finite live-panel benchmarks.
 - ESP-IDF app adapters and a reference for integrating the new driver hooks.
 - Standalone image preview, three-color conversion and USB portal integration fragments.
 - Sanitizer-backed host tests and anonymized physical benchmark measurements.
@@ -47,18 +49,22 @@ that interface; they are not a standalone replacement firmware.
 
 [Integration notes](docs/INTEGRATION.md) describe rendering, button routing,
 panel ownership, timing instrumentation, session limits and the USB controller.
-The integration used for our hardware measurements ran ESP-IDF 6.0.2 and custom
-firmware 0.8.31. That full firmware is kept out of this public tree.
+The integrations used for our hardware measurements run ESP-IDF 6.0.2; the
+[measurement notes](docs/BENCHMARKS.md) identify each tested firmware version. That full firmware is kept out of this public tree.
 
 ## Refresh experiments
 
-[Results and methods](docs/BENCHMARKS.md) include the eight 60-frame tests run
-on one badge with synchronized USB telemetry and webcam observation.
+[Results and methods](docs/BENCHMARKS.md) include the initial eight 60-frame tests,
+software-pipeline follow-ups and full video benchmarks on one badge, using USB
+telemetry and webcam observation.
 
-The 20 MHz checkerboard trial improved end-to-end throughput by about 10% over
-4 MHz. RAM writes became much faster; panel pulls stayed near 588 ms. Heavy
-ghosting remained at every tested clock. This is not evidence that higher clocks
-are safe for every board or that the panel can settle at the bus clock rate.
+The latest optimized 20 MHz checkerboard run completed 60 physical pulls at
+1.503 frames/sec, about 17% above the original 4 MHz path. Camera analysis
+confirmed all 60 visible reversals. Byte raster operations, cache-aware scanning,
+overlapping DMA preparation and finer BUSY polling contributed beyond the clock
+change. The full 323-frame video test completed in 214.0 seconds at 20 MHz versus
+251.5 seconds at 4 MHz, with the expected 319 physical pulls in both runs. Heavy ghosting remains. These are experimental monochrome updates; they
+do not replace the panel’s full-quality color waveform or certify higher clocks.
 
 On macOS, the controller can run a bounded test sequence and record video with
 no audio:
@@ -87,6 +93,9 @@ included in this repository.
 | `tests/` | Host C, Python and JavaScript checks |
 | `docs/` | Integration, protocol, provenance and benchmark methods |
 | `data/` | Anonymized aggregate measurements |
+
+[Refresh pipeline](docs/REFRESH_PIPELINE.md) explains the data path and buffer ownership.
+[Video mode](docs/VIDEO.md) covers preparation, USB loading and optional private built-in clips.
 
 Format project C with `.clang-format` and Python with Black. Keep vendor files
 and their notices unchanged. See [contributing](CONTRIBUTING.md).

@@ -87,3 +87,16 @@ Allowed requests are five patterns, the 4/5/8/12/20 MHz clock list and 1–60 fr
 8/12/20 MHz are experimental overclocks for this older panel family. A normal
 exit restores the default clock and shortcut behavior. A controller BUSY fault
 stays a fail-stop; do not add automatic reset/retry on a fault.
+
+## Faster raster and video ports
+
+Use `bwr_fill_rect` for the host's MSB-first rectangle primitive. Use
+`bwr_changed_boxes` to produce both controller bounds in one row-major pass.
+The host still owns the preceding-window union and controller RAM-swap state.
+[REFRESH_PIPELINE.md](REFRESH_PIPELINE.md) describes the DMA callbacks and their
+completion rules. No upstream panel-driver body is distributed here.
+
+The video app adapter uses the same port header plus its own FreeRTOS mutex.
+Initialize it before USB/UI tasks. Route the bounded commands and a dedicated
+Home launch event as described in [VIDEO.md](VIDEO.md). The included video
+codec, stream helpers and tests contain no music-video data.

@@ -14,3 +14,15 @@ add_test(NAME display_models COMMAND test_display)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(NAME remote_control COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_remote.py)
 add_test(NAME benchmark_app COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_app.py)
+
+add_executable(test_raster tests/test_raster.c)
+target_link_libraries(test_raster PRIVATE bwr_display)
+add_test(NAME raster_equivalence COMMAND test_raster)
+
+add_executable(test_video tests/test_video.c)
+target_link_libraries(test_video PRIVATE bwr_display)
+add_test(NAME video_codec COMMAND test_video)
+
+add_test(NAME video_app COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_video_app.py)
+
+add_test(NAME usb_host_framing COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_rpc.py)

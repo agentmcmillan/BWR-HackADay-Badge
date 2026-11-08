@@ -78,3 +78,104 @@ At each REVIEW, inspect the local recording/latest image, then create `continue`
 in that trial directory, or `stop` to end. The review wait is bounded. Do not
 retry a BUSY fault automatically. Raw video and device-specific serial logs stay
 in ignored local artifacts; only aggregate measurements are published.
+
+## Software pipeline follow-up: 0.8.32–0.8.35
+
+![Measured checkerboard throughput](assets/refresh-throughput.svg)
+
+The [new pipeline](REFRESH_PIPELINE.md) was then tested on the same badge.
+Each result below is 60 calls and 60 physical pulls. Reopen time remains included
+in end-to-end FPS. The full progression is in
+[`refresh-pipeline-2026-11-08.csv`](../data/refresh-pipeline-2026-11-08.csv).
+
+| Firmware / checkerboard profile | FPS | Steady call ms | Draw ms | Diff ms | Write ms | Pull/BUSY ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original 0.8.31, 4 MHz | 1.287 | 732.6 | 27.5 | 11.0 | 91.6 | 588.1 |
+| Original 0.8.31, 20 MHz | 1.414 | 667.0 | 27.2 | 11.1 | 26.1 | 588.3 |
+| Byte raster / extents 0.8.32, 4 MHz | 1.339 | 702.5 | 9.9 | 6.6 | 89.6 | 587.5 |
+| DMA overlap 0.8.34, 20 MHz | 1.487 | 632.6 | 9.8 | 6.7 | 18.5 | 588.8 |
+| Joint scan / finer polling 0.8.35, 4 MHz | 1.363 | 689.2 | 9.7 | 5.2 | 82.2 | 583.2 |
+| 0.8.35, 5 MHz | 1.396 | 673.3 | 9.7 | 4.9 | 66.5 | 583.1 |
+| 0.8.35, 20 MHz | 1.502 | 625.6 | 9.9 | 5.2 | 18.6 | 582.9 |
+| 0.8.35, 20 MHz repeat | 1.503 | 625.4 | 9.9 | 5.0 | 18.3 | 583.0 |
+
+The final repeated 20 MHz result is 16.8% above the original 4 MHz result and
+6.3% above the original 20 MHz result. The 4 MHz result improved 5.9% through
+software changes alone. Repeated final 20 MHz throughput differed by 0.04%.
+The approximately 5 ms reduction in reported pull/BUSY time comes from reducing
+host detection overshoot; the electrical waveform was not shortened.
+
+### Camera proof
+
+`tools/analyze_checker.py` samples 154 fixed 5 × 5 patches inside the checker field,
+with alternating signs. It requires meaningful contrast, uses 30% hysteresis,
+and counts visible reversals. All final 4/5/20 MHz runs and the successful repeat
+showed **60 reversals**, matching 60 device-reported pulls.
+
+| Profile | Camera mean steady interval | Device steady call |
+| --- | ---: | ---: |
+| Original 4 MHz | 732.3 ms | 732.6 ms |
+| Original 20 MHz | 667.3 ms | 667.0 ms |
+| Optimized 4 MHz | 688.6 ms | 689.2 ms |
+| Optimized 5 MHz | 673.1 ms | 673.3 ms |
+| Optimized 20 MHz | 625.9 ms | 625.6 ms |
+
+The camera is 30 fps; individual transitions are quantized to about 33 ms.
+Averaging the intervals over the burst reduces endpoint quantization error.
+Intervals above 1.2 seconds are excluded from the camera's steady mean because
+the known session reopen interrupts the otherwise steady cadence. The result
+establishes visible pattern reversals, not per-pixel contrast or complete settling.
+
+The camera moved away during the 0.8.32 20 MHz trial, so that run remains
+telemetry-only. One final repeat was cancelled after a host serial reader parsed
+a timeout fragment as a full response. The reader now buffers until newline;
+a regression test injects 256-byte fragments and empty timeout reads. The repeat
+was rerun successfully. Neither excluded trial is used as optical proof.
+
+The remaining dominant time is the roughly 580 ms electrical pull plus transfer
+and CPU work. These measurements establish the fastest tested profiles in this
+sequence, not an absolute hardware limit. The nominal 31.2-second BWR refresh in
+the [manufacturer's E2969JS0B1 datasheet](https://www.mouser.com/datasheet/2/1089/1P285_00_01_E2969JS0B1_20210517-3135607.pdf)
+is a different, full-quality three-color operation. This experimental fast path
+moves black/white content with brown/pink ghosting; the two must not be presented
+as equal-quality modes.
+
+## Full music-video benchmark
+
+The owner supplied a local 215.232-second copy of Rick Astley's “Never Gonna
+Give You Up”. It was converted into 323 frames sampled at 1.5 fps, ordered-dithered
+at 240 × 156 and expanded 4× on the badge. The same validated clip was used for
+both complete runs on firmware 0.8.35. It is privately built into this badge's
+RickVideo menu mode; the public repository contains only the generic app/codec
+and tools, with no source video, derived frames or audio.
+
+| Requested SPI profile | Frames processed | Physical pulls | Elapsed | Presentation rate | Physical refresh rate |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 4 MHz | 323 | 319 | 251.518 s | 1.284 fps | 1.268 Hz |
+| 20 MHz experimental | 323 | 319 | 214.010 s | 1.509 fps | 1.491 Hz |
+
+The faster profile improved throughput **17.5%** on this video. Both runs contain
+five session reopens, no deliberate playback pacing and no frame dropping. A
+byte comparison of the prepared source independently finds exactly four
+unchanged consecutive frames; those account for the difference between 323
+frame calls and 319 physical pulls. The final sampled clip takes approximately
+its original source duration to play at the faster profile, at this low temporal
+resolution. It is not 30 fps video.
+
+Mean RAM-write time fell from 143.36 to 31.02 ms per input frame. Panel pull/BUSY
+time remained about 583 ms per physical pull. No controller fault was reported.
+The aggregate measurements are in [`video-2026-11-08.csv`](../data/video-2026-11-08.csv).
+
+The camera recorded both complete passes at 30 fps without audio. Nine baseline
+samples and eight fast samples across the recordings matched successively later
+source frames. Perspective-corrected, blurred correlation ranged 0.67–0.89 for
+4 MHz and 0.53–0.81 for 20 MHz. This establishes recognizable changing content
+throughout the sampled run, with dithering, glare and ghosting visible. It does
+not establish bit-perfect pixels or that higher SPI improves image quality.
+The source frames occur at different wall-clock times in the two passes.
+
+The badge returned to Home afterward. Video mode restores the normal 4 MHz
+request when it exits. Its private built-in clip reloads after restart, so the
+owner can use **RickVideo → MENU −** for the 20 MHz experimental replay; A starts
+a default 4 MHz replay after reopening the app. Public integration instructions
+and local conversion commands are in [VIDEO.md](VIDEO.md).

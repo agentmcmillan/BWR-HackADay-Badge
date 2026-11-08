@@ -45,6 +45,7 @@ session = None
 fault = False
 all_results = []
 home_ready = False
+rx_pending = bytearray()
 
 
 def line_read():
@@ -52,7 +53,13 @@ def line_read():
     data = s.readline()
     if not data:
         return ""
-    line = data.decode(errors="replace").strip()
+    rx_pending.extend(data)
+    if len(rx_pending) > 8192:
+        raise RuntimeError("Oversized serial line")
+    if not rx_pending.endswith(b"\n"):
+        return ""
+    line = rx_pending.decode(errors="replace").strip()
+    rx_pending.clear()
     if "Home ready:" in line:
         home_ready = True
     log.write(line + "\n")
@@ -81,7 +88,7 @@ def rpc(verb, *parts, timeout=5):
         m = re.match(r"@BC1 (\d+) (\d+) (\S+)", line)
         if m and int(m[1]) == seq:
             code = int(m[2])
-            body = base64.b64decode(m[3]).decode()
+            body = base64.b64decode(m[3], validate=True).decode()
             if code != 200:
                 raise RuntimeError(f"{verb}: {code}: {body}")
             try:

@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#include "bwr_video.h"
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+static uint8_t file[BWR_VIDEO_HEADER + BWR_VIDEO_FRAME * 2], canvas[80640];
+static void word(unsigned offset, uint32_t value)
+{
+    for (unsigned i = 0; i < 4; i++)
+        file[offset + i] = (uint8_t)(value >> (i * 8));
+}
+static void packed_check(void)
+{
+    uint8_t packed[10000] = {0}, decoded[sizeof file];
+    memcpy(packed, "BWRPACK1", 8);
+    for (unsigned i = 0; i < 4; i++) {
+        packed[8 + i] = (uint8_t)(sizeof file >> (8 * i));
+        packed[12 + i] = (uint8_t)(bwr_video_crc32(file, sizeof file) >> (8 * i));
+    }
+    size_t used = 16, pos = 0;
+    while (pos < sizeof file) {
+        size_t n = sizeof file - pos;
+        if (n > 128)
+            n = 128;
+        packed[used++] = (uint8_t)(n - 1);
+        memcpy(packed + used, file + pos, n);
+        used += n;
+        pos += n;
+    }
+    assert(bwr_video_unpack(packed, used, decoded, sizeof decoded) == sizeof file &&
+           !memcmp(decoded, file, sizeof file));
+    assert(!bwr_video_unpack(packed, used, decoded, sizeof decoded - 1));
+    for (size_t i = 0; i < used; i++)
+        assert(!bwr_video_unpack(packed, i, decoded, sizeof decoded));
+    packed[16] = 128;
+    assert(!bwr_video_unpack(packed, used, decoded, sizeof decoded));
+    // Literal header followed by repeated zero payload exercises the repeat branch.
+    memset(file + 32, 0, sizeof file - 32);
+    word(20, bwr_video_crc32(file + 32, sizeof file - 32));
+    for (unsigned i = 0; i < 4; i++)
+        packed[12 + i] = (uint8_t)(bwr_video_crc32(file, sizeof file) >> (8 * i));
+    used = 16;
+    packed[used++] = 31;
+    memcpy(packed + used, file, 32);
+    used += 32;
+    pos = 32;
+    while (pos < sizeof file) {
+        size_t n = sizeof file - pos;
+        if (n > 128)
+            n = 128;
+        assert(n >= 2);
+        packed[used++] = (uint8_t)(257 - n);
+        packed[used++] = 0;
+        pos += n;
+    }
+    assert(bwr_video_unpack(packed, used, decoded, sizeof decoded) == sizeof file &&
+           !memcmp(decoded, file, sizeof file));
+}
+int main(void)
+{
+    assert(bwr_video_crc32((const uint8_t *)"123456789", 9) == 0xcbf43926u);
+    memcpy(file, "BWRVID1", 8);
+    file[8] = 240;
+    file[10] = 156;
+    word(12, 2);
+    word(16, 1500);
+    for (size_t i = 32; i < sizeof file; i++)
+        file[i] = (uint8_t)(i * 137u);
+    word(20, bwr_video_crc32(file + 32, sizeof file - 32));
+    bwr_video video;
+    assert(bwr_video_parse(file, sizeof file, &video) && video.count == 2 &&
+           video.fps_milli == 1500);
+    memset(canvas, 0xa5, sizeof canvas);
+    for (unsigned frame = 0; frame < 2; frame++) {
+        assert(bwr_video_draw(&video, frame, canvas));
+        for (unsigned i = 0; i < 48 * 120; i++)
+            assert(canvas[i] == 0xa5);
+        for (unsigned y = 48; y < 672; y++)
+            for (unsigned x = 0; x < 960; x++) {
+                unsigned src = (y - 48) / 4 * 240 + x / 4;
+                unsigned expected = (file[32 + frame * 4680 + src / 8] >> (7 - src % 8)) & 1;
+                assert(((canvas[y * 120 + x / 8] >> (7 - x % 8)) & 1) == expected);
+            }
+    }
+    assert(!bwr_video_draw(&video, 2, canvas));
+    for (size_t length = 0; length < sizeof file; length++)
+        assert(!bwr_video_parse(file, length, &video));
+    for (size_t i = 0; i < sizeof file; i += 11) {
+        file[i] ^= 1;
+        assert(!bwr_video_parse(file, sizeof file, &video));
+        file[i] ^= 1;
+    }
+    packed_check();
+    word(12, 601);
+    assert(!bwr_video_parse(file, sizeof file, &video));
+    puts("PASS video: CRC known vector, strict format/size/count checks, corrupt/truncated input "
+         "rejection, exact 4x expansion and preserved status bar");
+}

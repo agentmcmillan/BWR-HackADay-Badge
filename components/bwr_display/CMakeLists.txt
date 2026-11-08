@@ -1,4 +1,4 @@
-set(BWR_SOURCES src/game_tag.c src/saver_shapes.c src/refresh_lab.c)
+set(BWR_SOURCES src/bwr_video.c src/bwr_raster.c src/game_tag.c src/saver_shapes.c src/refresh_lab.c)
 if(COMMAND idf_component_register)
     idf_component_register(SRCS ${BWR_SOURCES} src/refresh_remote.c
         INCLUDE_DIRS include ../../vendor REQUIRES freertos)

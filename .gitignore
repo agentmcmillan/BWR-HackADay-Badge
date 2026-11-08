@@ -8,3 +8,8 @@ __pycache__/
 *.elf
 *.map
 *.mp4
+*.bwrv
+*.mpg
+*.mpeg
+*.webm
+*.mov
