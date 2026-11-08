@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BWR image preview</title>
+<style>
+body { font: 16px system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 1rem; }
+canvas { width: 100%; border: 1px solid #aaa; }
+input, select { margin: .5rem; }
+</style>
+<h1>BWR image preview</h1>
+<p>Preview a photo at 960 × 624 pixels using white, black and red ink. Processing stays in your browser.</p>
+<label>Image <input id="file" type="file" accept="image/*"></label>
+<label>Ink <select id="color"><option value="red">Black and red</option><option value="mono">Black only</option></select></label>
+<p id="status" role="status">Choose an image.</p>
+<canvas id="preview" width="960" height="624"></canvas>
+<script src="eink-renderer.js"></script>
+<script>
+// SPDX-License-Identifier: GPL-3.0-or-later
+const file = document.getElementById('file');
+const color = document.getElementById('color');
+const status = document.getElementById('status');
+let source, active;
+async function render() {
+  if (!source) return;
+  if (active) active.abort();
+  const job = active = new AbortController();
+  status.textContent = 'Rendering…';
+  try {
+    const result = await EinkRenderer.render(source, {color: color.value === 'red'}, job.signal);
+    if (active !== job) return;
+    EinkRenderer.preview(document.getElementById('preview'), result);
+    status.textContent = 'Preview ready. Physical ink colors and ghosting depend on the panel.';
+  } catch (error) {
+    if (active === job) status.textContent = error.message;
+  }
+}
+let selection = 0;
+file.onchange = async () => {
+  const id = ++selection;
+  if (active) active.abort();
+  source = null;
+  if (!file.files.length) return;
+  status.textContent = 'Reading image…';
+  try {
+    const pixels = await EinkRenderer.load(file.files[0]);
+    if (selection !== id) return;
+    source = pixels;
+    await render();
+  } catch (error) {
+    if (selection === id) status.textContent = error.message;
+  }
+};
+color.onchange = render;
+</script>
+</html>

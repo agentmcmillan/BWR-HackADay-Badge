@@ -1,0 +1,7 @@
+{
+  "package": "@opendisplay/epaper-dithering",
+  "version": "6.1.1",
+  "license": "MIT",
+  "upstream": "https://github.com/OpenDisplay/epaper-dithering",
+  "bundle_sha256": "5866d98bd257d59be1551efb187e8d6bbe652aa3c358db2255d9fdc6060a466a"
+}

@@ -1,0 +1,10 @@
+set(BWR_SOURCES src/game_tag.c src/saver_shapes.c src/refresh_lab.c)
+if(COMMAND idf_component_register)
+    idf_component_register(SRCS ${BWR_SOURCES} src/refresh_remote.c
+        INCLUDE_DIRS include ../../vendor REQUIRES freertos)
+else()
+    add_library(bwr_display STATIC ${BWR_SOURCES})
+    target_include_directories(bwr_display PUBLIC include ../../vendor)
+    target_link_libraries(bwr_display PUBLIC m)
+    target_compile_options(bwr_display PRIVATE -Wall -Wextra -Werror)
+endif()

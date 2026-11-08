@@ -1,0 +1,10 @@
+build/
+artifacts/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.bin
+*.elf
+*.map
+*.mp4

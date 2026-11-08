@@ -1,0 +1,108 @@
+<fieldset id="photos-panel"><legend>Photos slideshow</legend>
+<p>1. Choose up to 14 photos. 2. Upload. 3. Press <strong>Play slideshow on badge</strong>.</p>
+<input id="photo-files" type="file" accept="image/*" multiple aria-label="Choose slideshow photos">
+<div id="photo-controls">
+<label>Rendering<select id="photo-preset"><option value="natural">Photo — natural</option><option value="color">Photo — full red palette</option><option value="artwork">Artwork / text</option></select></label>
+<label>Dithering<select id="photo-algorithm"><option value="stucki">Stucki — smooth tones</option><option value="burkes">Burkes — balanced</option><option value="atkinson">Atkinson — graphic</option></select></label>
+<label>Brightness<input id="photo-exposure" type="range" min="-1" max="1" value="0" step="0.1"></label>
+<label><input id="photo-color" type="checkbox" checked> Use red ink</label>
+<label><input id="photo-calibrated" type="checkbox" checked> Use this badge’s photo calibration</label>
+<label>Tone correction: <output id="photo-strength-value">50%</output><input id="photo-strength" type="range" min="0" max="100" value="50" step="5"></label>
+<small>Half strength is the default. Tone correction uses Natural photos or B/W with Stucki, without extra-detail refinement. Measured ink colors apply to all modes.</small>
+<label><input id="photo-detail" type="checkbox"> Extra detail (slower)</label>
+</div>
+<div id="photo-preview-box" hidden>
+<label>Preview photo<select id="photo-preview-select"></select></label>
+<label><input id="photo-original" type="checkbox"> Show original</label>
+<div style="overflow:auto"><canvas id="photo-preview" width="960" height="624"></canvas></div>
+<small id="photo-preview-status" role="status"></small>
+</div>
+<button id="photo-upload" disabled>Upload selected photos</button>
+<button id="photo-play" disabled>▶ Play slideshow on badge</button>
+<button id="photo-delete-all" disabled style="background:white;color:#900;border:1px solid #900">Delete all photos</button>
+<small>Photos are separate from your Badge image. Natural mode keeps neutral areas monochrome. Re-upload older photos to use the new rendering. Each photo stays visible for 60 seconds after its full refresh. On the badge: MENU +/− = previous/next, A = pause/play, B = Home.</small>
+<p id="photo-status" role="status">Connect or unlock settings to manage photos.</p><div id="photo-list"></div></fieldset>
+<script>
+(() => {
+  const el=id=>document.getElementById(id);
+  let gallery={capacity:14,photos:[]}, busy=false;
+  const headers=()=>({'X-Badge-Token':token});
+  async function result(r){const t=await r.text();if(!r.ok)throw Error(t);return t;}
+  async function refresh(){
+    gallery=JSON.parse(await result(await fetch('/photos',{headers:headers()})));
+    el('photo-list').replaceChildren();
+    gallery.photos.forEach(photo=>{
+      const row=document.createElement('div'),name=document.createElement('span'),remove=document.createElement('button');
+      name.textContent=`${photo.slot+1}. ${photo.title} · ${photo.color?'red/black/white':'black/white'}`;
+      remove.textContent='Delete '+photo.title;
+      remove.onclick=async()=>{if(busy)return;busy=true;controls();try{await result(await fetch('/photo',{method:'DELETE',headers:{...headers(),'X-Photo-Slot':String(photo.slot)}}));await refresh();}catch(e){el('photo-status').textContent=e.message;}finally{busy=false;controls();}};
+      row.append(name,remove);el('photo-list').append(row);
+    });
+    el('photo-status').textContent=`${gallery.photos.length} of ${gallery.capacity} photos saved. ${gallery.photos.length?'Ready to play.':'Choose photos above to start.'}`;
+    controls();
+  }
+  function controls(){el('photo-controls').querySelectorAll('input,select').forEach(input=>input.disabled=busy);el('photo-strength').disabled=busy||!el('photo-calibrated').checked||el('photo-algorithm').value!=='stucki'||el('photo-detail').checked||el('photo-preset').value==='artwork'||(el('photo-preset').value==='color'&&el('photo-color').checked);el('photo-upload').disabled=busy||!token||gallery.available===false||!el('photo-files').files.length;el('photo-play').disabled=busy||!token||!gallery.photos.length;el('photo-delete-all').disabled=busy||!token||!gallery.photos.length;el('photo-list').querySelectorAll('button').forEach(button=>button.disabled=busy||!token);}
+  let previewSource=null,previewFile=null,previewResult=null,previewEpoch=0,previewAbort=null;
+  function renderOptions(){return {preset:el('photo-preset').value,algorithm:el('photo-algorithm').value,exposure:Number(el('photo-exposure').value),color:el('photo-color').checked,calibrated:el('photo-calibrated').checked,calibrationStrength:Number(el('photo-strength').value)/100,detail:el('photo-detail').checked};}
+  function showPreview(){
+    if(el('photo-original').checked&&previewSource){const ctx=el('photo-preview').getContext('2d'),image=ctx.createImageData(960,624);image.data.set(previewSource);ctx.putImageData(image,0,0);}
+    else if(previewResult)EinkRenderer.preview(el('photo-preview'),previewResult);
+  }
+  async function renderPreview(){
+    const file=el('photo-files').files[Number(el('photo-preview-select').value)||0];if(!file)return;
+    const epoch=++previewEpoch;if(previewAbort)previewAbort.abort();previewAbort=new AbortController();
+    el('photo-preview-status').textContent='Rendering at the badge resolution…';
+    try{
+      if(file!==previewFile){const data=await EinkRenderer.load(file);if(epoch!==previewEpoch)return;previewSource=data;previewFile=file;}
+      const result=await EinkRenderer.render(previewSource,renderOptions(),previewAbort.signal);if(epoch!==previewEpoch)return;
+      previewResult=result;showPreview();el('photo-preview-status').textContent='Preview of the uploaded pixels. These settings apply to every selected photo.';
+    }catch(e){if(epoch===previewEpoch)el('photo-preview-status').textContent=e.message;}
+  }
+  el('photo-files').onchange=()=>{
+    controls();el('photo-preview-select').replaceChildren();
+    Array.from(el('photo-files').files).forEach((file,i)=>{const option=document.createElement('option');option.value=i;option.textContent=file.name;el('photo-preview-select').append(option);});
+    el('photo-preview-box').hidden=!el('photo-files').files.length;renderPreview();
+  };
+  el('photo-preview-select').onchange=renderPreview;el('photo-original').onchange=showPreview;
+  let previewTimer;
+  ['photo-preset','photo-algorithm','photo-exposure','photo-color','photo-detail','photo-calibrated','photo-strength'].forEach(id=>el(id).oninput=()=>{controls();el('photo-strength-value').textContent=el('photo-strength').value+'%';clearTimeout(previewTimer);previewTimer=setTimeout(renderPreview,120);});
+  async function convert(file,options){const data=file===previewFile&&previewSource?previewSource:await EinkRenderer.load(file);return (await EinkRenderer.render(data,options)).packed;}
+  el('photo-upload').onclick=async()=>{
+    if(busy)return;busy=true;controls();const files=Array.from(el('photo-files').files),options=renderOptions();
+    try{await refresh();const free=Array.from({length:gallery.capacity},(_,i)=>i).filter(i=>!gallery.photos.some(p=>p.slot===i));
+      if(files.length>free.length)throw Error(`Only ${free.length} slots free. Delete photos or choose fewer files.`);
+      for(let i=0;i<files.length;i++){el('photo-status').textContent=`Uploading ${i+1} of ${files.length}: ${files[i].name}`;const bytes=await convert(files[i],options);
+        const title=files[i].name.replace(/[^\x20-\x7e]/g,'_').slice(0,31)||'Photo';
+        await result(await fetch('/photo',{method:'POST',headers:{...headers(),'X-Photo-Slot':String(free[i]),'X-Photo-Name':title},body:bytes}));
+      }
+      el('photo-files').value='';await refresh();el('photo-status').textContent='Upload complete. Press Play slideshow on badge, or open Photos from Home.';el('photo-play').focus();
+    }catch(e){el('photo-status').textContent='Upload stopped: '+e.message+' Photos already uploaded are kept.';}finally{busy=false;controls();}
+  };
+  el('photo-delete-all').onclick=async()=>{
+    if(busy||!token||!gallery.photos.length)return;
+    const deletionToken=token;busy=true;controls();
+    try{
+      await refresh();
+      const photos=gallery.photos.slice();
+      if(!photos.length){el('photo-status').textContent='No slideshow photos to delete.';return;}
+      if(!window.confirm(`Delete all ${photos.length} slideshow photos from this badge? This cannot be undone. Your Badge image and settings will be kept.`)){
+        el('photo-status').textContent='Deletion cancelled. Your photos were kept.';return;
+      }
+      for(let i=0;i<photos.length;i++){
+        if(token!==deletionToken)throw Error('Connection changed. Reconnect before continuing.');
+        el('photo-status').textContent=`Deleting photo ${i+1} of ${photos.length}…`;
+        await result(await fetch('/photo',{method:'DELETE',headers:{...headers(),'X-Photo-Slot':String(photos[i].slot)}}));
+      }
+      await refresh();
+      el('photo-status').textContent=gallery.photos.length?`Deleted ${photos.length} photos. ${gallery.photos.length} photos remain; reload the list before deleting again.`:'All slideshow photos deleted.';
+    }catch(e){
+      let refreshed=true;try{await refresh();}catch(_){refreshed=false;}
+      el('photo-status').textContent='Could not finish deleting photos: '+e.message+(refreshed?' Check the refreshed list and try again.':' Reconnect and reload the list before retrying.');
+    }finally{busy=false;controls();}
+  };
+  el('photo-play').onclick=async()=>{if(busy)return;busy=true;controls();try{el('photo-status').textContent=await result(await fetch('/photos/play',{method:'POST',headers:headers()}));}catch(e){el('photo-status').textContent=e.message;busy=false;controls();}};
+  window.photoDisconnected=()=>{busy=false;token='';controls();};
+  window.refreshPhotos=()=>{if(busy)return Promise.resolve();return refresh().catch(e=>{el('photo-status').textContent=e.message;});};
+  const unlock=el('load').onclick;el('load').onclick=async function(){await unlock();if(token)await window.refreshPhotos();};
+})();
+</script>

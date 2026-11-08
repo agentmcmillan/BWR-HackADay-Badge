@@ -1,0 +1,9 @@
+BWR Hackaday Badge additions
+
+Original project additions are GPL-3.0-or-later. See LICENSE and docs/LICENSING.md.
+The inherited badge OS, panel driver, settings page, stock games and artwork are
+not distributed here. This repository is not a complete firmware distribution.
+
+The font in vendor/font8x8_basic.h retains its upstream public-domain notice.
+The web dithering bundle retains OpenDisplay.org and OpenDithering MIT notices
+under web/vendor/. Third-party terms take precedence for their respective files.
