@@ -28,7 +28,8 @@ bool bwr_video_parse(const uint8_t *bytes, size_t size, bwr_video *video)
         return false;
     unsigned stride;
     if (native) {
-        if (width != 960 || height != 624 || count > 36 || timing < 1000 || timing > 30000)
+        if (width != 960 || height != 624 || count > 36 || (timing != 0 && timing < 1000) ||
+            timing > 30000)
             return false;
         stride = 74880;
     } else {

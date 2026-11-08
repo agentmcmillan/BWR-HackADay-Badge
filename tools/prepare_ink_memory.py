@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Prepare detailed, slowly held poses; physical afterimages are created by the panel."""
+"""Prepare detailed native poses, with optional still holds and physical afterimages."""
 import argparse
 import hashlib
 import json
@@ -24,7 +24,7 @@ parser.add_argument(
     "--hold",
     type=float,
     default=4,
-    help="Seconds of stillness after each completed refresh/shutdown",
+    help="Seconds of stillness after refresh/shutdown, or 0 for continuous playback",
 )
 parser.add_argument(
     "--subject-model",
@@ -40,10 +40,10 @@ if (
     or not math.isfinite(args.start)
     or not 0 <= args.start
     or not 0.1 <= args.source_step <= 30
-    or not 1 <= args.hold <= 30
+    or not (args.hold == 0 or 1 <= args.hold <= 30)
 ):
     parser.error(
-        "Use a local file, new output, 1–36 poses, nonnegative start, 0.1–30 source-step and 1–30s hold"
+        "Use a local file, new output, 1–36 poses, nonnegative start, 0.1–30 source-step and hold 0 or 1–30s"
     )
 net = None
 if args.subject_model:

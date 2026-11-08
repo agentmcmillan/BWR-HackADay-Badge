@@ -89,6 +89,14 @@ static void native_check(void)
     bytes[12] = 2;
     bytes[16] = 0;
     bytes[17] = 0;
+    assert(bwr_video_parse(bytes, size, &clip) && clip.native_ink && clip.hold_ms == 0);
+    assert(bwr_video_draw(&clip, 1, canvas));
+    assert(!memcmp(canvas + 48 * 120, bytes + 32 + 74880, 74880));
+    // Only exactly zero or a fully bounded long hold is accepted.
+    bytes[16] = 1;
+    assert(!bwr_video_parse(bytes, size, &clip));
+    bytes[16] = 0xe7;
+    bytes[17] = 3; // 999 ms
     assert(!bwr_video_parse(bytes, size, &clip));
     free(bytes);
 }

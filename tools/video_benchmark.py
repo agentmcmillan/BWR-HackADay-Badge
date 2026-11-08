@@ -38,7 +38,7 @@ def parse_clip(data):
         valid = (
             (width, height) == (960, 624)
             and 1 <= count <= 36
-            and 1000 <= timing <= 30000
+            and (timing == 0 or 1000 <= timing <= 30000)
         )
         stride, hold_ms = 74880, timing
     else:

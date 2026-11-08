@@ -209,7 +209,7 @@ void app_video(void)
             xSemaphoreTake(lock, portMAX_DELAY);
             position = frame + 1;
             xSemaphoreGive(lock);
-            if (clip.native_ink) {
+            if (clip.native_ink && clip.hold_ms) {
                 ui_close(); // pigment remains; shut the booster down during the long hold
                 uint64_t until = (uint64_t)esp_timer_get_time() + (uint64_t)clip.hold_ms * 1000;
                 while ((uint64_t)esp_timer_get_time() < until) {

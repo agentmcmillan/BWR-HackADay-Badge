@@ -58,3 +58,9 @@ cancelled final hold from a completed paced run. Tests cover native/legacy host
 parsing, whole-file timing identity, full-resolution pixel detail, converter
 PackBits/CRC compatibility, camera-loss cleanup and successful leave-ink behavior.
 No hardware validation is implied by those software checks.
+
+The continuous native option permits only an exact zero hold or the existing
+1,000–30,000 ms held range. Tests verify that zero-hold native frames share the
+open session, add no blank/result redraw, and still close on completion or
+frame-boundary Home/stop/Fresh-sheet actions. Converter and both parsers reject
+nonzero sub-second holds. Session-limit enforcement remains in the display driver.

@@ -46,8 +46,12 @@ with tempfile.TemporaryDirectory() as directory:
     source = folder / "source.local"
     source.touch()
     outputs = []
-    for packed in [False, True]:
-        output = folder / ("clip.bwrp" if packed else "clip.bwrink")
+    for packed, hold_ms in [(False, 4000), (True, 4000), (False, 0)]:
+        output = folder / (
+            ("clip.bwrp" if packed else "clip.bwrink")
+            if hold_ms
+            else "continuous.bwrink"
+        )
         arguments = [
             "prepare_ink_memory.py",
             str(source),
@@ -55,7 +59,7 @@ with tempfile.TemporaryDirectory() as directory:
             "--poses",
             "2",
             "--hold",
-            "4",
+            str(hold_ms / 1000),
         ] + (["--packbits"] if packed else [])
 
         def decode(command, **kwargs):
@@ -79,7 +83,7 @@ with tempfile.TemporaryDirectory() as directory:
             960,
             624,
             2,
-            4000,
+            hold_ms,
             0,
             0,
         )
@@ -90,7 +94,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert mask[:, 70:540, 479].all() and mask[:, 100:500, 200:260].all()
         assert not mask[:, 0:60].any()
         assert np.array_equal(mask[0], mask[1]) and np.array_equal(raw, saved)
-        assert json.loads(stdout.getvalue())["hold_ms"] == 4000
+        assert json.loads(stdout.getvalue())["hold_ms"] == hold_ms
         outputs.append(data)
     assert outputs[0] == outputs[1]
     for option, value in [
@@ -99,6 +103,8 @@ with tempfile.TemporaryDirectory() as directory:
         ("--source-step", "inf"),
         ("--hold", "nan"),
         ("--hold", "inf"),
+        ("--hold", "0.5"),
+        ("--hold", "-1"),
         ("--poses", "37"),
     ]:
         arguments = [
@@ -140,6 +146,7 @@ verify = namespace["verify_builtin_clip"]
 data = outputs[0]
 native, count, crc, hold = parse(data)
 assert native and count == 2 and hold == 4000
+assert parse(outputs[2]) == (True, 2, crc, 0)
 legacy_payload = b"\x01" * 4680
 legacy = (
     struct.pack(

@@ -12,6 +12,7 @@ enum {
 typedef struct {
     const uint8_t *frames;
     unsigned count, fps_milli;
+    // Native: zero means continuous; otherwise hold 1000–30000 ms after shutdown.
     unsigned frame_bytes, hold_ms;
     bool native_ink;
 } bwr_video;
