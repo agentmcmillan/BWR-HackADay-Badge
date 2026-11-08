@@ -13,17 +13,22 @@ panel can sustain. Source sampling FPS describes the source timeline, not a
 promise of display FPS. Identical frames can produce no panel pull and are
 reported separately from completed frame calls. Playback is silent.
 
-A / Replay runs the loaded clip, MENU + selects/runs 4 MHz, MENU − selects/runs
-the experimental 20 MHz profile, and B returns Home. USB stop/exit takes effect
-at a frame boundary. Exiting restores the default 4 MHz request and shortcut
-handling. The RAM clip remains available from Home until restart or replacement;
-saved photos and flash partitions are not changed.
+A / Loop runs a classic clip continuously and changes to Pause during playback.
+MENU + selects 4 MHz and MENU − selects the experimental 20 MHz profile. Either
+clock button starts a stopped loop or changes the clock at the next frame
+boundary while it is running. The controller session is shut down before the
+SPI clock changes, then playback continues with the next clip frame. B returns
+Home. USB `video_run` remains finite for repeatable benchmarks; USB stop/exit
+takes effect at a frame boundary. Exiting restores the default 4 MHz request and
+shortcut handling. The RAM clip remains available from Home until restart or
+replacement; saved photos and flash partitions are not changed.
 
 Zero-hold native clips use the experimental 20 MHz profile by default and loop
 their distinct poses for a bounded 600-frame performance run. Held native clips
 play their stored pose count once. The renderer uses `frame % clip.count` only
-for native looping; classic BWRVID1 requests remain bounded by their stored frame
-count. Cancellation is checked at every frame boundary.
+for native looping. Local classic playback also wraps by the stored frame count;
+USB BWRVID1 requests remain finite. Cancellation and clock changes are checked
+at every frame boundary.
 
 ## Prepare and run
 

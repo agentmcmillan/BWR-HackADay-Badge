@@ -99,9 +99,9 @@ static void title(const char *message)
     text(32, SHAPE_TOP + 40, 4, "VIDEO BENCHMARK", true);
     text(32, SHAPE_TOP + 120, 1, message, true);
     text(32, SHAPE_TOP + 176, 2, "USB upload: 240 x 156, monochrome, up to 600 frames", true);
-    text(32, SHAPE_TOP + 224, 2, "4x expansion. No dropped frames or added pacing.", true);
-    text(32, SHAPE_TOP + 272, 2, "Silent playback; panel ghosting remains visible.", true);
-    ui_keys("4 MHz", "20 MHz", "Replay", "Home");
+    text(32, SHAPE_TOP + 224, 2, "4x expansion. Playback runs at the panel limit.", true);
+    text(32, SHAPE_TOP + 272, 2, "A loops/pauses. +/- change speed while playing.", true);
+    ui_keys("4 MHz", "20 MHz", "Loop", "Home");
     ui_frame(1);
     ui_close();
 }
@@ -118,10 +118,10 @@ void app_video(void)
         ui_keys("Fresh sheet", NULL, "Dance again", "Home");
         ui_close();
     } else
-        title(clip.frames ? "Clip loaded. A replays at 4 MHz."
+        title(clip.frames ? "Clip loaded. Choose a clock or press A to loop."
                           : "Return Home, then upload a .bwrv clip over USB.");
     unsigned mhz = clip.native_ink ? 20 : 4;
-    bool fresh_sheet = false;
+    bool fresh_sheet = false, local_loop = false;
     for (;;) {
         int button = btn_get(100);
         if (button == BWR_BTN_B)
@@ -141,7 +141,8 @@ void app_video(void)
             mhz = 20;
         if (button == BWR_BTN_A || button == BWR_BTN_PLUS || button == BWR_BTN_MINUS) {
             unsigned frames = clip.native_ink && clip.hold_ms == 0 ? BWR_VIDEO_MAX_FRAMES : clip.count;
-            video_request(mhz, frames);
+            if (video_request(mhz, frames))
+                local_loop = !clip.native_ink;
         }
         xSemaphoreTake(lock, portMAX_DELAY);
         bool exit_now = leave, start = pending;
@@ -161,6 +162,8 @@ void app_video(void)
             break;
         if (!start)
             continue;
+        bool continuous = local_loop;
+        local_loop = false;
         refresh_result result = {0};
         bool run_cancelled = false;
         if (!ui_refresh_lab_begin(mhz)) {
@@ -179,12 +182,13 @@ void app_video(void)
             continue;
         }
         if (!clip.native_ink) {
+            ui_keys("4 MHz", "20 MHz", "Pause", "Home");
             memset(fb, 0, sizeof fb);
             ui_frame(1); // legacy blank warmup excluded
         } else
             ui_close();
         uint64_t begin = (uint64_t)esp_timer_get_time();
-        for (unsigned frame = 0; frame < target; frame++) {
+        for (unsigned frame = 0; continuous || frame < target; frame++) {
             xSemaphoreTake(lock, portMAX_DELAY);
             bool halted = stop || leave;
             xSemaphoreGive(lock);
@@ -195,6 +199,21 @@ void app_video(void)
                 video_stop(false);
                 break;
             }
+            if (!clip.native_ink && (key == BWR_BTN_PLUS || key == BWR_BTN_MINUS)) {
+                unsigned selected = key == BWR_BTN_PLUS ? 4 : 20;
+                if (selected != mhz) {
+                    ui_refresh_lab_end();
+                    mhz = selected;
+                    xSemaphoreTake(lock, portMAX_DELAY);
+                    requested_mhz = mhz;
+                    xSemaphoreGive(lock);
+                    if (!ui_refresh_lab_begin(mhz)) {
+                        run_cancelled = true;
+                        video_stop(false);
+                        break;
+                    }
+                }
+            }
             if (key == BWR_BTN_A || key == BWR_BTN_B || halted) {
                 run_cancelled = true;
                 if (key == BWR_BTN_B)
@@ -202,7 +221,7 @@ void app_video(void)
                 break;
             }
             uint64_t t0 = esp_timer_get_time();
-            bwr_video_draw(&clip, clip.native_ink ? frame % clip.count : frame, fb);
+            bwr_video_draw(&clip, (clip.native_ink || continuous) ? frame % clip.count : frame, fb);
             uint64_t drawn = esp_timer_get_time();
             ui_frame(1);
             uint64_t end = esp_timer_get_time();
@@ -210,7 +229,7 @@ void app_video(void)
             ui_refresh_lab_sample(&sample);
             refresh_result_add(&result, &sample, end - t0, drawn - t0);
             xSemaphoreTake(lock, portMAX_DELAY);
-            position = frame + 1;
+            position = continuous ? frame % clip.count + 1 : frame + 1;
             xSemaphoreGive(lock);
             if (clip.native_ink && clip.hold_ms) {
                 ui_close(); // pigment remains; shut the booster down during the long hold
@@ -268,7 +287,7 @@ void app_video(void)
             fresh_sheet = false;
         }
         if (!clip.native_ink)
-            title(line);
+            title(continuous ? "Loop paused. Choose a clock or press A to loop again." : line);
     }
     ui_refresh_lab_end();
     ui_close();

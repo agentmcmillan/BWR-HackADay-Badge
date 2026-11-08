@@ -36,7 +36,7 @@ static void xSemaphoreTake(int m,int t){(void)t;assert(m&&!locked);locked=true;}
 static void xSemaphoreGive(int m){assert(m&&locked);locked=false;}
 static uint8_t fb[PLANE],shown[PLANE];
 static uint64_t now;
-static unsigned idle_calls,draws,scenario,ends,hold_reads,wipes,text_calls,closes,rate=4;
+static unsigned idle_calls,draws,scenario,ends,hold_reads,wipes,text_calls,closes,rate=4,begins4,begins20;
 static unsigned frame_closes[16];
 static bool shortcut=true,closed;
 static refresh_sample sample;
@@ -49,7 +49,7 @@ static void ui_wipe(void){wipes++;memset(fb,0,sizeof fb);}
 static void ui_refresh_shortcut(bool on){shortcut=on;}
 static void ui_protect_overlay(const uint8_t *mask){assert(!mask);}
 static void ui_protect_footer(bool on){assert(!on);}
-bool ui_refresh_lab_begin(unsigned mhz){assert(mhz==4||mhz==20);if(scenario==2)return false;rate=mhz;return true;}
+bool ui_refresh_lab_begin(unsigned mhz){assert(mhz==4||mhz==20);if(mhz==4)begins4++;else begins20++;if(scenario==2)return false;rate=mhz;return true;}
 void ui_refresh_lab_end(void){ends++;rate=4;}
 void ui_refresh_lab_sample(refresh_sample *out){*out=sample;}
 static int btn_get(int timeout){
@@ -63,6 +63,8 @@ static int btn_get(int timeout){
  }
  if(timeout==100){idle_calls++;if(scenario==3&&idle_calls==1)assert(!video_request(20,3));if(scenario==8&&idle_calls==1){assert(video_request(20,2));return -1;}return idle_calls==1?BWR_BTN_A:BWR_BTN_B;}
  assert(timeout==0);
+ if(scenario==0&&draws==3)return BWR_BTN_MINUS;
+ if(scenario==0&&draws>=8)return BWR_BTN_A;
  if(scenario==1&&draws>=4)return BWR_BTN_B;
  if(scenario==9&&draws>=1)return BWR_BTN_B;
  if(scenario==10&&draws>=1)return BWR_BTN_PLUS;
@@ -83,21 +85,22 @@ int main(void){
   put(data+20,bwr_video_crc32(data+32,n-32));assert(video_accept(data,n));
   char identity[1024],expected_crc[64];video_status(identity,sizeof identity);
   snprintf(expected_crc,sizeof expected_crc,"\"clip_crc32\":%lu",(unsigned long)bwr_video_crc32(data+32,n-32));assert(strstr(identity,expected_crc));
-  idle_calls=draws=ends=hold_reads=wipes=text_calls=closes=0;now=0;shortcut=true;closed=false;
+  idle_calls=draws=ends=hold_reads=wipes=text_calls=closes=begins4=begins20=0;now=0;shortcut=true;closed=false;
   app_video();assert(!video_active()&&!locked&&shortcut&&closed&&ends>=1&&rate==4);
   char status[1024];video_status(status,sizeof status);puts(status);
-  assert(strstr(status,scenario==0?"\"calls\":4":scenario==1||scenario==3||scenario==7||scenario==8?"\"calls\":2":scenario==2?"\"calls\":0":"\"calls\":1"));
+  assert(strstr(status,scenario==0?"\"calls\":6":scenario==1||scenario==3||scenario==7||scenario==8?"\"calls\":2":scenario==2?"\"calls\":0":"\"calls\":1"));
+  if(scenario==0){assert(strstr(status,"\"pulls\":6")&&strstr(status,"\"mhz\":20"));assert(begins4==1&&begins20==1);}
   if(native){assert(text_calls==0);if(scenario==3){assert(now>=9200000&&draws==2&&hold_reads>=80);}else if(scenario==7){assert(hold_reads==43&&draws==2&&now<9200000);}else if(scenario>=8){
    assert(hold_reads==0);
    if(scenario==8)assert(now==1200000&&draws==2&&frame_closes[0]==frame_closes[1]);
    if(scenario==9||scenario==11)assert(draws==1&&now==600000);
   }else assert(hold_reads==3);}
-  assert(strstr(status,scenario==1||(scenario>=4&&scenario!=8)?"\"cancelled\":true":"\"cancelled\":false"));
+  assert(strstr(status,scenario<=1||(scenario>=4&&scenario!=8)?"\"cancelled\":true":"\"cancelled\":false"));
   if(scenario==6||scenario==10)assert(wipes==1);
  }
  video_stop(true);video_stop(false);assert(leave);
  free(clip_bytes);clip_bytes=NULL;
- puts("PASS video app: immutable clip, held/continuous native playback, uninterrupted zero-hold session, final shutdown, frame-boundary cancellation/Freshsheet and default-clock/shortcut cleanup");
+ puts("PASS video app: immutable clip, continuous classic loop with live 4/20 MHz switch, held/continuous native playback, uninterrupted zero-hold session, final shutdown, frame-boundary cancellation/Freshsheet and default-clock/shortcut cleanup");
 }
 """
 with tempfile.TemporaryDirectory() as directory:

@@ -86,6 +86,12 @@ separate 16-row run whose device trigger rate was 18.631 Hz.
 The electrical A/B results are in
 [`data/tcon-edge-wait-2026-11-08.csv`](data/tcon-edge-wait-2026-11-08.csv).
 
+The measured next steps are ranked in the
+[display speed roadmap](docs/SPEED_ROADMAP.md): rolling-band video and
+temporal-stable encoding first, followed by dirty-cluster scheduling,
+BUSY-time inactive-plane writes, higher SPI clocks and a bounded search for a
+shorter legal waveform.
+
 The latest optimized 20 MHz checkerboard run completed 60 physical pulls at
 1.503 frames/sec, about 17% above the original 4 MHz path. Camera analysis
 confirmed all 60 visible reversals. Byte raster operations, cache-aware scanning,
