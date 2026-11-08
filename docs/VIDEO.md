@@ -50,6 +50,37 @@ USB controller keeps its connection open across upload and playback, since
 opening serial can reset an ESP32-S3 on macOS. Review recordings locally; do not
 publish source clips, derived frames or device-specific logs unintentionally.
 
+### Adaptive band compilation
+
+An adaptive style compiles source pictures into whole-frame states that differ
+only inside one narrow horizontal band. The ordinary partial driver then limits
+both RAM traffic and the physical gate scan without requiring a separate wire
+format:
+
+```sh
+python tools/prepare_video.py input.mp4 artifacts/adaptive.bwrv \
+  --fps 10 --style adaptive-dither --band-rows 8 --max-age 12 \
+  --motion-weight 2
+```
+
+Each source row expands into four panel rows, so the default eight-row band is a
+32-panel-row update. The scheduler ranks unresolved pixel error, current motion
+and band age, strongly prioritizing overdue changed bands.
+`--focus X:Y:W:H` gives a source-space region four times the error weight; this
+is useful for a known face or subject but is not automatic object recognition.
+`adaptive-light-grid` applies the same scheduling after the sparse light-grid
+renderer.
+
+The last states return the image to white one band at a time. Because Video
+blanks before playback, both the end-to-start wrap and every internal transition
+remain within the requested band height. This adds closure operations and makes
+the loop intentionally dissolve before restarting. The JSON result reports
+source, closure and total operation counts plus mean/maximum changed rows.
+
+Adaptive output prioritizes local motion rather than simultaneous complete
+frames. Its header FPS records source sampling for provenance; playback remains
+unpaced and runs at the panel's physical limit.
+
 `--frames 60` limits a timing run. Omit it to run every loaded frame. After a
 REVIEW checkpoint, create `continue` or `stop` in that trial directory. BUSY faults
 remain fail-stops. Camera capture is macOS AVFoundation, 1920 × 1080 at 30 fps.

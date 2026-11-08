@@ -311,3 +311,7 @@ The runner writes raw results and serial logs under ignored `artifacts/`. Verify
 the exact badge, firmware hash, panel model and power/current limits before a
 hardware run. Do not automatically retry a missing reply or BUSY fault. Inspect
 the panel after geometry changes; telemetry alone cannot prove pixel coverage.
+
+The next-stage distinction between decodable OTP/LUT data, internal COG behavior
+and raw-panel hardware is documented in the
+[TCON reverse-engineering plan](TCON_REVERSE_ENGINEERING.md).

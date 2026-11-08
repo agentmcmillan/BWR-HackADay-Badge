@@ -90,7 +90,10 @@ The measured next steps are ranked in the
 [display speed roadmap](docs/SPEED_ROADMAP.md): rolling-band video and
 temporal-stable encoding first, followed by dirty-cluster scheduling,
 BUSY-time inactive-plane writes, higher SPI clocks and a bounded search for a
-shorter legal waveform.
+shorter legal waveform. The portable policy and adapter contract are in
+[adaptive refresh](docs/ADAPTIVE_REFRESH.md), and the boundary between readable
+configuration, waveform microcode and inaccessible COG internals is developed
+in the [TCON reverse-engineering plan](docs/TCON_REVERSE_ENGINEERING.md).
 
 The latest optimized 20 MHz checkerboard run completed 60 physical pulls at
 1.503 frames/sec, about 17% above the original 4 MHz path. Camera analysis

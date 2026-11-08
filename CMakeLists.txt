@@ -19,11 +19,16 @@ add_executable(test_raster tests/test_raster.c)
 target_link_libraries(test_raster PRIVATE bwr_display)
 add_test(NAME raster_equivalence COMMAND test_raster)
 
+add_executable(test_band_scheduler tests/test_band_scheduler.c)
+target_link_libraries(test_band_scheduler PRIVATE bwr_display)
+add_test(NAME adaptive_band_scheduler COMMAND test_band_scheduler)
+
 add_executable(test_video tests/test_video.c)
 target_link_libraries(test_video PRIVATE bwr_display)
 add_test(NAME video_codec COMMAND test_video)
 
 add_test(NAME video_app COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_video_app.py)
+add_test(NAME adaptive_video COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_adaptive_video.py)
 
 add_test(NAME usb_host_framing COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_rpc.py)
 add_test(NAME tcon_lab_contract COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_tcon_lab.py)
