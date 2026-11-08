@@ -22,6 +22,17 @@ is not a license for the omitted badge OS or panel driver.
 | [supercon26-badge-idf](https://github.com/yigitabi5444/supercon26-badge-idf) | `45daa5783fcd5d74b6b56028cd597e77a1a81915` | No project license grant found in checked tree |
 | [official Billboard Badge](https://github.com/Hack-a-Day/2026-Billboard_Badge) | `9c55a516632eddfc2fe774e393407c0765e8cb13` | No project license file found in checked tree |
 
+A follow-up inspection of the official repository on 2026-11-08 found explicit
+Pervasive Displays source/binary redistribution notices in
+[`firmware/badge/lib/epd.py`](https://github.com/Hack-a-Day/2026-Billboard_Badge/blob/main/firmware/badge/lib/epd.py)
+and
+[`epd_grayscale.py`](https://github.com/Hack-a-Day/2026-Billboard_Badge/blob/main/firmware/badge/lib/epd_grayscale.py).
+Those notices require retaining the copyright, conditions and disclaimer in
+source distributions and reproducing them in binary-distribution materials.
+They are file-specific evidence, not a repository-wide grant covering the badge
+OS, other firmware files or artwork. The public snapshot remains additions and
+documentation only; neither upstream driver is copied here.
+
 The public tree excludes the inherited settings HTML page, those firmware implementations, their artwork, the
 upstream game implementations, and linked firmware binaries. API names and
 porting instructions identify integration points; they do not redistribute the

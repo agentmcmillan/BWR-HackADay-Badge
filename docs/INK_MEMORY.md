@@ -111,3 +111,12 @@ These measurements point to the panel waveform/BUSY duration as the dominant
 steady-state cost. An RTOS migration alone would not remove that cost. A faster
 waveform would need separate controller timing and optical validation; a shorter
 BUSY timeout does not shorten the panel's work.
+
+The official badge source was also checked for controller-side shortcuts. Its
+[`epd.py`](https://github.com/Hack-a-Day/2026-Billboard_Badge/blob/main/firmware/badge/lib/epd.py)
+uses a 20 MHz hardware-SPI request, and its
+[`rendered_luts.py`](https://github.com/Hack-a-Day/2026-Billboard_Badge/blob/main/firmware/badge/data/rendered_luts.py)
+describes distinct short-waveform formats for the 084 and B1 controller variants.
+The B1 grayscale helper uses custom tables and multiple preparation/drive pulls;
+it does not establish a faster continuous native-video setting. Those sources
+do not justify substituting an 084 waveform on a B1 panel or bypassing BUSY.
