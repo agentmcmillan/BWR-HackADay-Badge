@@ -89,3 +89,25 @@ sequence comparison, not a new sustained maximum-rate claim. Both completed
 without cancellation or a reported controller fault. The continuous check used
 serial telemetry; its visual ghosting was not camera-verified. The final pose
 was left in place, and the panel session closed at completion.
+
+Two alternating trials per SPI setting on firmware 0.8.38 then compared the same
+nine-pose native payload without holds:
+
+| SPI setting | Mean nine-pose elapsed | Mean transfer time per pose | Mean pull wait per pose |
+| --- | ---: | ---: | ---: |
+| 4 MHz | 8.737 seconds | 89.6 ms | 581.7 ms |
+| 20 MHz | 7.846 seconds | 19.8 ms | 581.3 ms |
+
+The 20 MHz setting increased whole-sequence throughput by about 11.4%. Each trial
+completed nine physical pulls with one session open and no reported cancellation
+or controller fault. These are short serial-timed trials, not optical validation
+or a new electrical rating; 20 MHz remains experimental. See the
+[sanitized trial data](data/native-gesture-clocks.csv). The app restores the driver
+to 4 MHz after completion, while A reuses the selected playback profile until
+leaving the app. The built-in default remains 4 MHz.
+
+The firmware already uses ESP-IDF FreeRTOS, DMA transfers and a 240 MHz CPU.
+These measurements point to the panel waveform/BUSY duration as the dominant
+steady-state cost. An RTOS migration alone would not remove that cost. A faster
+waveform would need separate controller timing and optical validation; a shorter
+BUSY timeout does not shorten the panel's work.
