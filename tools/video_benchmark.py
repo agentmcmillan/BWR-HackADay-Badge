@@ -59,7 +59,7 @@ def parse_clip(data):
     return native, count, crc, hold_ms
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("port")
 parser.add_argument("clip", type=Path)
 parser.add_argument("--firmware-version", default="0.8.34")

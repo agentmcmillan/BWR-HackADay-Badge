@@ -8,7 +8,7 @@ import struct
 import cv2
 import numpy as np
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("clip", type=Path)
 parser.add_argument("recording", type=Path)
 parser.add_argument(

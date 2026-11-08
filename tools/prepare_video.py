@@ -22,7 +22,7 @@ def parse_grid(value):
     return columns, rows
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("input", type=Path)
 parser.add_argument("output", type=Path)
 parser.add_argument("--fps", type=float, default=1.5)

@@ -7,7 +7,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("video", type=Path)
 parser.add_argument(
     "--quad",

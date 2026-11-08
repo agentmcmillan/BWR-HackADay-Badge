@@ -265,7 +265,7 @@ static void white_text(uint8_t *red, int left, int top, int scale, const char *l
                     for (int dy = 0; dy < scale; dy++)
                         for (int dx = 0; dx < scale; dx++) {
                             int xx = left + (n * 8 + x) * scale + dx, yy = top + y * scale + dy;
-                            red[yy * (SHAPE_W / 8) + xx / 8] &= (uint8_t)~(128u >> (xx & 7));
+                            red[yy * (SHAPE_W / 8) + xx / 8] &= (uint8_t) ~(128u >> (xx & 7));
                         }
 }
 void shapes_tag_render_named(uint8_t black[SHAPE_BYTES], uint8_t red[SHAPE_BYTES], uint8_t *mask,

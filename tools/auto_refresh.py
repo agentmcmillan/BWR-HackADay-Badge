@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 import serial
 
-p = argparse.ArgumentParser()
+p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("port")
 p.add_argument("--cases", default="0:4,0:5")
 p.add_argument("--camera", default="0")
@@ -110,10 +110,11 @@ def stop_video(proc):
 
 try:
     hello = rpc("hello")
-    session = hello["session"]
     expected_version = args.firmware_version
     if hello["version"] != expected_version:
         raise RuntimeError("Wrong test firmware: " + str(hello))
+    # Set only after the version check, so cleanup never commands unknown firmware.
+    session = hello["session"]
     # macOS may reset the chip when this port opens. Do not enqueue work before
     # Home's initialization/btn_flush has completed. Keep this connection open.
     boot_deadline = time.monotonic() + 20

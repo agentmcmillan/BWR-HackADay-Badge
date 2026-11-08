@@ -14,6 +14,8 @@ static bool panel_rate_pending, panel_measure;
 static uint64_t panel_bytes, panel_transactions;
 static refresh_sample panel_sample;
 #define BTN_REFRESH_LAB 100
+// Partial updates accumulate ghosting; force a full waveform at least this often.
+#define GAME_TAG_FULL_REFRESH_US 180000000 // 3 minutes
 static bool game_tag_present_locked(bool force, bool cached);
 static bool game_tag_present_locked(bool force, bool cached)
 {
@@ -23,7 +25,8 @@ static bool game_tag_present_locked(bool force, bool cached)
     }
     if (!game_source_valid)
         return false;
-    bool full = force || !game_tag_valid || esp_timer_get_time() - game_tag_cleaned_at >= 180000000;
+    bool full = force || !game_tag_valid ||
+                esp_timer_get_time() - game_tag_cleaned_at >= GAME_TAG_FULL_REFRESH_US;
     if (full) {
         atomic_store(&game_tag_busy, true);
         if (game_tag_enabled && !film_has_red && !cfg_set("panel_red", "1")) {

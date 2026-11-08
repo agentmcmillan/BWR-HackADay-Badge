@@ -64,3 +64,30 @@ The continuous native option permits only an exact zero hold or the existing
 open session, add no blank/result redraw, and still close on completion or
 frame-boundary Home/stop/Fresh-sheet actions. Converter and both parsers reject
 nonzero sub-second holds. Session-limit enforcement remains in the display driver.
+
+## Readability and stability pass
+
+A later pass reviewed the whole public tree for failure handling and how easy it
+is to read. Fixes:
+
+- **Web Serial transport:** a single malformed base64 response used to tear down
+  the whole connection. Now it fails only its own request. When the device
+  disconnects, the writer is released and the port is closed. After a successful
+  connection, a settings-load failure no longer looks like a port conflict. The
+  fetch shim clamps badge-supplied status codes to a valid error range.
+- **Host tools:** `record_refresh.py` recognizes `Panel BUSY timeout` as a panel
+  fault. On an exception or Ctrl-C it records `status: "error"` instead of
+  leaving `waiting`. `badge_rpc.py` and `auto_refresh.py` adopt the session only
+  after the firmware version matches, so cleanup never commands unexpected
+  firmware. `--help` now shows each tool's description.
+- **Video adapter:** a cancelled native hold leaves the frame loop directly
+  instead of relying on the next iteration's stop check.
+- **Readability:** raster code uses named canvas constants and documents its
+  box layout. The two changed-box scanners share one helper. The video header
+  documents both clip formats and every field. Refresh Lab's clock lookup is
+  bounded. The game-tag full-refresh interval is named. CI checks Black
+  formatting.
+
+The host tests still pass. Known, unchanged limits: the restore-status poll has
+no deadline, and the Home-ready wait gives up quietly after 20 s.
+

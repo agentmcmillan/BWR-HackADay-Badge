@@ -74,9 +74,10 @@ class BadgeRPC:
 
     def connect(self, expected_version):
         hello = self.call("hello")
-        self.session = hello["session"]
         if hello["version"] != expected_version:
             raise RuntimeError("Unexpected test firmware")
+        # Set only after the version check, so cleanup never commands unknown firmware.
+        self.session = hello["session"]
         deadline = time.monotonic() + 20
         while not self.home_ready and time.monotonic() < deadline:
             self.read()

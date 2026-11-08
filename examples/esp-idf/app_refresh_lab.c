@@ -10,6 +10,7 @@
 static EXT_RAM_BSS_ATTR uint8_t base[SHAPE_BYTES];
 static unsigned planned_frames = LAB_FRAMES;
 static const unsigned clocks[] = {4, 5, 8, 12, 20};
+enum { CLOCK_COUNT = sizeof clocks / sizeof clocks[0] };
 static EXT_RAM_BSS_ATTR uint64_t reference_us[LAB_PATTERN_COUNT];
 enum { FIELD_Y = 168, FIELD_H = 352 };
 
@@ -152,9 +153,11 @@ void app_refresh_lab(void)
             pattern = request.pattern;
             target = request.frames;
             planned_frames = target;
-            for (clock = 0; clocks[clock] != request.mhz; clock++) {
-            }
-            if (!ui_refresh_lab_begin(clocks[clock]))
+            // refresh_remote_submit() only accepts listed clocks; stay bounded regardless.
+            clock = 0;
+            while (clock + 1 < CLOCK_COUNT && clocks[clock] != request.mhz)
+                clock++;
+            if (clocks[clock] != request.mhz || !ui_refresh_lab_begin(clocks[clock]))
                 break;
             button = BWR_BTN_A;
         }
@@ -166,7 +169,7 @@ void app_refresh_lab(void)
             if (button == BWR_BTN_PLUS)
                 pattern = (pattern + 1) % LAB_PATTERN_COUNT;
             else {
-                clock = (clock + 1) % 5;
+                clock = (clock + 1) % CLOCK_COUNT;
                 if (!ui_refresh_lab_begin(clocks[clock]))
                     break;
             }

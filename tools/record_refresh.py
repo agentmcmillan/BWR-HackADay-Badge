@@ -92,13 +92,17 @@ try:
                         record["status"] = "completed"
                         tail_until = time.monotonic() + 2
                         print(line, flush=True)
-                    if "Panel stopped;" in line:
+                    # Same fail-stop markers as badge_rpc.py and auto_refresh.py.
+                    if "Panel stopped;" in line or "Panel BUSY timeout" in line:
                         record["status"] = "panel_fault"
                         tail_until = time.monotonic() + 2
             if tail_until and time.monotonic() >= tail_until:
                 break
     if not record["summary"] and record["status"] != "panel_fault":
         record["status"] = "timeout"
+except BaseException as error:  # includes Ctrl-C: never leave status "waiting"
+    record.update(status="error", error=str(error) or type(error).__name__)
+    raise
 finally:
     s.close()
     if proc.poll() is None:

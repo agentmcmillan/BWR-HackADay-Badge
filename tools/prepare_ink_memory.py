@@ -14,7 +14,7 @@ import numpy as np
 from clip_pack import packbits_envelope
 
 MODEL_SHA256 = "552d8a984054e59b5d773d24b9b12022b22046ceb2bbc4c9aaeaceb36a9ddf24"
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("input", type=Path)
 parser.add_argument("output", type=Path)
 parser.add_argument("--poses", type=int, default=12)

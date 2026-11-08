@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 'use strict';
-// Shared portal fetches are carried by bounded request/ack frames over Web Serial.
+// USB transport for the badge settings portal.
+//
+// Replaces window.fetch for the portal's own endpoints (/cfg, /save, /image,
+// /photos, /photo, /photos/play) and carries each request over Web Serial as one
+// text line per frame:
+//   request:  @BC1 <id> <verb> [<session>] [<args>]\n
+//   response: @BC1 <id> <http-status> <base64 body>\n
+// Other serial output (boot and game logs) is ignored. Uploads are sent as
+// 768-byte chunks; a busy badge (503) is retried for up to 40 seconds.
+//
+// Expects the host portal page to define: #load, #code and #save elements, and
+// the globals unlock (the #load click handler), imageAbort, imageEpoch,
+// renderBusy, saving, img, gray, rgb and hadImg.
+const CHUNK_BYTES = 768;
+const RPC_TIMEOUT_MS = 8000;
+const BUSY_RETRIES = 40;
 class BadgeSerial {
   constructor() {
     this.port = null;
@@ -60,7 +75,14 @@ class BadgeSerial {
           const p = this.pending.get(Number(frame[1]));
           if (!p) continue;
           this.pending.delete(Number(frame[1]));
-          const body = new TextDecoder().decode(Uint8Array.from(atob(frame[3]), c => c.charCodeAt(0)));
+          let body;
+          try {
+            body = new TextDecoder().decode(Uint8Array.from(atob(frame[3]), c => c.charCodeAt(0)));
+          } catch (_) {
+            // A corrupted frame fails only its own request, not the connection.
+            p.reject(Error('Badge sent a corrupted response.'));
+            continue;
+          }
           if (frame[2] === '200') p.resolve(body);
           else { const error = Error(body); error.status = Number(frame[2]); p.reject(error); }
         }
@@ -73,6 +95,18 @@ class BadgeSerial {
       for (const p of this.pending.values()) p.reject(Error('Badge disconnected.'));
       this.pending.clear();
       this.session = '';
+      // close() clears this.port before cancelling the reader. If the port is still
+      // set, the device went away: release the writer and close the port here too.
+      const port = this.port;
+      if (port) {
+        this.port = null;
+        this.reader = null;
+        if (this.writer) {
+          try { this.writer.releaseLock(); } catch (_) {}
+          this.writer = null;
+        }
+        port.close().catch(() => {});
+      }
       this.onDisconnect();
     }
   }
@@ -83,7 +117,7 @@ class BadgeSerial {
       const timeout = setTimeout(() => {
         this.pending.delete(id);
         reject(Error('Badge did not respond. Use firmware 0.8.9 or newer in normal running mode.'));
-      }, 8000);
+      }, RPC_TIMEOUT_MS);
       const finish = fn => value => { clearTimeout(timeout); fn(value); };
       this.pending.set(id, {resolve: finish(resolve), reject: finish(reject)});
       const line = `@BC1 ${id} ${verb}${verb === 'hello' ? '' : ' ' + this.session}${args ? ' ' + args : ''}\n`;
@@ -96,7 +130,7 @@ class BadgeSerial {
     for (let attempt = 0; ; ++attempt) {
       try { return await this.rpc(verb, args); }
       catch (error) {
-        if (error.status !== 503 || attempt >= 39) throw error;
+        if (error.status !== 503 || attempt >= BUSY_RETRIES - 1) throw error;
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -108,9 +142,9 @@ class BadgeSerial {
     try {
       await this.rpc('begin', `${kind} ${bytes.length}${extra ? ' ' + extra : ''}`);
       try {
-        for (let offset = 0; offset < bytes.length; offset += 768) {
+        for (let offset = 0; offset < bytes.length; offset += CHUNK_BYTES) {
           if (this.session !== session) throw Error('Badge connection changed during upload.');
-          const block = bytes.subarray(offset, offset + 768);
+          const block = bytes.subarray(offset, offset + CHUNK_BYTES);
           const encoded = btoa(String.fromCharCode(...block));
           await this.rpc('chunk', `${offset} ${encoded}`);
         }
@@ -146,7 +180,9 @@ window.fetch = async (url, options = {}) => {
         typeof options.body === 'string' ? new TextEncoder().encode(options.body) : options.body);
     return new Response(body, {status: 200});
   } catch (error) {
-    return new Response(error.message, {status: error.status || 503});
+    // Badge-supplied codes outside the error range would make Response() throw.
+    const status = error.status >= 400 && error.status <= 599 ? error.status : 503;
+    return new Response(error.message, {status});
   }
 };
 window.addEventListener('DOMContentLoaded', async () => {
@@ -178,8 +214,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (connecting) return;
     connecting = true; button.disabled = true;
     state.textContent = 'Connecting…';
+    let connected = false;
     try {
       const info = await badgeSerial.connect(port);
+      connected = true;
       get('code').value = info.session;
       if(imageAbort)imageAbort.abort(); imageEpoch++; renderBusy=false;
       saving = false; img = gray = rgb = null; hadImg = false;
@@ -188,8 +226,13 @@ window.addEventListener('DOMContentLoaded', async () => {
       disconnect.hidden = false;
       await unlock();
     } catch (error) {
-      state.textContent = `${error.message} Close any serial monitor that is using the port.`;
-      get('save').disabled = true;
+      if (connected) {
+        // The USB session is up; only loading settings failed. Keep it open.
+        state.textContent = `Connected, but settings could not be loaded: ${error.message}`;
+      } else {
+        state.textContent = `${error.message} Close any serial monitor that is using the port.`;
+        get('save').disabled = true;
+      }
     } finally { connecting = false; button.disabled = false; }
   }
   button.onclick = async () => {
@@ -229,7 +272,18 @@ window.addEventListener('DOMContentLoaded',()=>{
       await badgeSerial.close();
       const response=await nativeFetch('/restore-original',{method:'POST',headers:{'Content-Type':'application/json','X-Badge-Action':'restore-original'},body:JSON.stringify({ticket})});
       if(!response.ok)throw Error('The local restore service could not start. Reconnect and unlock Original again.');
-      for(;;){const progress=await (await nativeFetch('/restore-status')).json();status.textContent=progress.message;if(progress.state!=='running'){if(progress.state==='error')button.disabled=false;break;}await new Promise(resolve=>setTimeout(resolve,1000));}
+      // Poll the local restore service once a second until it finishes.
+      for (;;) {
+        const reply = await nativeFetch('/restore-status');
+        if (!reply.ok) throw Error('Lost contact with the local restore service.');
+        const progress = await reply.json();
+        status.textContent = progress.message;
+        if (progress.state !== 'running') {
+          if (progress.state === 'error') button.disabled = false;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }catch(error){status.textContent=error.message;button.disabled=false;}
   };
 });

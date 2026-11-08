@@ -237,6 +237,8 @@ void app_video(void)
                         break;
                     }
                 }
+                if (run_cancelled)
+                    break; // leave the frame loop too, not just the hold
             }
         }
         uint64_t elapsed = (uint64_t)esp_timer_get_time() - begin;
