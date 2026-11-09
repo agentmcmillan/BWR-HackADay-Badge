@@ -11,6 +11,11 @@ display. Register names below come from the manufacturer application sequence
 and the Hackaday badge team's driver reference. No public IST7136 bitfield
 manual was found.
 
+The [IST7136 command and register catalog](TCON_REGISTER_CATALOG.md) lists all
+22 controller indices known to this project, their observed payloads, target
+COG and evidence level. It is complete for the known driver and lab paths, not
+a claim that the undocumented `0x00`--`0xFF` silicon map has been recovered.
+
 The source baseline is pinned to upstream commit
 [`9c55a516`](https://github.com/Hack-a-Day/2026-Billboard_Badge/tree/9c55a516632eddfc2fe774e393407c0765e8cb13):
 the badge team's

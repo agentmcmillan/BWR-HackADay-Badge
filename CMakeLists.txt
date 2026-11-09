@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(bwr_display_additions LANGUAGES C)
+project(bwr_display_additions VERSION 1.0.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 option(BWR_SANITIZERS "Enable host AddressSanitizer and UndefinedBehaviorSanitizer" ON)
 if(BWR_SANITIZERS AND CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")

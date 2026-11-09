@@ -3,6 +3,9 @@
 Reusable display, animation and benchmark code developed for the Hackaday
 Supercon 2026 Billboard Badge: ESP32-S3 and a 960 × 672 E2969JS0B1 panel.
 
+**Current release: 1.0.0.** See the [changelog](CHANGELOG.md) for the stable
+public API and release history.
+
 This repository contains our original additions, host tools, tests and measured
 results. It deliberately **does not include the upstream badge OS, panel driver,
 stock artwork, or complete firmware images**: the badge firmware repositories
@@ -66,7 +69,9 @@ The [TCON/OTP lab record](docs/TCON_LAB.md) documents the controller register
 probe, factory OTP field map, bounded serial method and negative timing results
 for TCON, oscillator, DCTL and DRFW experiments. The complete captured OTP is in
 [`data/tcon-otp-b1-2026-11-08.json`](data/tcon-otp-b1-2026-11-08.json), and
-aggregate measurements are in
+the [known command/register catalog](docs/TCON_REGISTER_CATALOG.md) identifies
+all 22 indices observed in the matching driver and lab paths without claiming
+coverage of the undocumented silicon map. Aggregate measurements are in
 [`data/tcon-register-trials-2026-11-08.csv`](data/tcon-register-trials-2026-11-08.csv);
 `tools/tcon_lab.py` reproduces the fixed trial order and the measured 16–624-row
 scan law against compatible firmware. The later held-session result, including
