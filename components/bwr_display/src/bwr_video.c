@@ -113,6 +113,32 @@ bool bwr_video_draw_rows(const bwr_video *video, unsigned frame, unsigned first_
     return true;
 }
 
+bool bwr_video_draw_rows_smol(const bwr_video *video, unsigned frame, unsigned first_row,
+                              unsigned last_row, uint8_t *canvas)
+{
+    // The display body is 960 x 624 below a 48-row bar. Half each dimension
+    // is a centered viewport with one quarter of the full-size video area.
+    enum { stride = 120, x_byte = 30, y = 204 };
+    static const uint8_t double_nibble[16] = {
+        0x00, 0x03, 0x0c, 0x0f, 0x30, 0x33, 0x3c, 0x3f,
+        0xc0, 0xc3, 0xcc, 0xcf, 0xf0, 0xf3, 0xfc, 0xff,
+    };
+    if (!video || !canvas || !video->frames || video->native_ink || frame >= video->count ||
+        first_row > last_row || last_row >= 156)
+        return false;
+    const uint8_t *source = video->frames + (size_t)frame * video->frame_bytes;
+    for (unsigned row = first_row; row <= last_row; row++) {
+        uint8_t *out = canvas + (y + row * 2) * stride + x_byte;
+        for (unsigned col = 0; col < 30; col++) {
+            uint8_t bits = source[row * 30 + col];
+            out[col * 2] = double_nibble[bits >> 4];
+            out[col * 2 + 1] = double_nibble[bits & 15];
+        }
+        memcpy(out + stride, out, 60);
+    }
+    return true;
+}
+
 bool bwr_video_draw(const bwr_video *video, unsigned frame, uint8_t *canvas)
 {
     return bwr_video_draw_rows(video, frame, 0, video && video->native_ink ? 623 : 155, canvas);

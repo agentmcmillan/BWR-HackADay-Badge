@@ -136,6 +136,27 @@ static void delta_check(void)
     assert(!bwr_video_draw_rows(&video, 1, 20, 19, canvas));
     assert(!bwr_video_draw_rows(&video, 1, 0, 156, canvas));
 }
+static void smol_check(void)
+{
+    memset(file + 32, 0, sizeof file - 32);
+    file[32] = 0xa1;
+    word(20, bwr_video_crc32(file + 32, sizeof file - 32));
+    bwr_video video;
+    assert(bwr_video_parse(file, sizeof file, &video));
+    memset(canvas, 0x5a, sizeof canvas);
+    assert(bwr_video_draw_rows_smol(&video, 0, 0, 0, canvas));
+    assert(canvas[203 * 120 + 30] == 0x5a);
+    assert(canvas[204 * 120 + 29] == 0x5a);
+    assert(canvas[204 * 120 + 30] == 0xcc);
+    assert(canvas[204 * 120 + 31] == 0x03);
+    assert(canvas[204 * 120 + 32] == 0x00);
+    assert(canvas[204 * 120 + 89] == 0x00);
+    assert(canvas[204 * 120 + 90] == 0x5a);
+    assert(!memcmp(canvas + 204 * 120 + 30, canvas + 205 * 120 + 30, 60));
+    assert(canvas[206 * 120 + 30] == 0x5a);
+    video.native_ink = true;
+    assert(!bwr_video_draw_rows_smol(&video, 0, 0, 0, canvas));
+}
 int main(void)
 {
     assert(bwr_video_crc32((const uint8_t *)"123456789", 9) == 0xcbf43926u);
@@ -172,10 +193,11 @@ int main(void)
     }
     packed_check();
     delta_check();
+    smol_check();
     word(12, 601);
     assert(!bwr_video_parse(file, sizeof file, &video));
     native_check();
     puts("PASS native/legacy video: CRC known vector, strict format/size/count checks, "
          "corrupt/truncated input "
-         "rejection, exact full/delta-row expansion and preserved status bar");
+         "rejection, exact full/delta-row/Smol expansion and preserved status bar");
 }

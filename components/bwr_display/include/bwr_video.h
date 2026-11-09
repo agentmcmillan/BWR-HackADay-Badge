@@ -29,6 +29,9 @@ bool bwr_video_delta_rows(const bwr_video *video, unsigned frame, unsigned previ
                           unsigned *first_row, unsigned *last_row);
 bool bwr_video_draw_rows(const bwr_video *video, unsigned frame, unsigned first_row,
                          unsigned last_row, uint8_t *canvas);
+// Expand a classic frame 2x into the centered 480 x 312 body viewport.
+bool bwr_video_draw_rows_smol(const bwr_video *video, unsigned frame, unsigned first_row,
+                             unsigned last_row, uint8_t *canvas);
 
 // Optional PackBits envelope for a private built-in clip. Returns decoded bytes or zero.
 size_t bwr_video_unpack(const uint8_t *packed, size_t size, uint8_t *output, size_t capacity);

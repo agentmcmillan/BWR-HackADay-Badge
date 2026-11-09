@@ -142,6 +142,15 @@ fallback for native clips and integrations without a ranged refresh API.
 An empty delta is reported as `first_row > last_row`; callers can count that
 operation as a cache hit without expanding or scanning the full canvas.
 
+`bwr_video_draw_rows_smol` is a second presentation path for classic clips. It
+duplicates every compact source pixel 2 x 2 into a centered 480 x 312 viewport
+at panel coordinates x=240..719 and y=204..515. This is half the full video
+width and height, or one quarter of its area. The matching partial-refresh hint
+is `204 + first_row * 2` through `204 + (last_row + 1) * 2 - 1`. Both the source
+detail and frame count stay unchanged; the speed opportunity comes from shorter
+gate scans and smaller RAM windows. Native ink-memory clips are deliberately
+rejected by this helper because their pixels are already panel-resolution.
+
 `--frames 60` limits a timing run. Omit it to run every loaded frame. After a
 REVIEW checkpoint, create `continue` or `stop` in that trial directory. BUSY faults
 remain fail-stops. Camera capture is macOS AVFoundation, 1920 × 1080 at 30 fps.
